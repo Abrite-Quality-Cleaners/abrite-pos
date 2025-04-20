@@ -13,11 +13,14 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 set(PROJECT_SOURCES
+    main.cpp
     WindowController.cpp
     LoginWindow.cpp
     StoreSelectionWindow.cpp
-    main.cpp
+    ClientSelectionWindow.cpp
+    DropoffWindow.cpp
     User.cpp
+    Store.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

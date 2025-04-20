@@ -11,7 +11,7 @@ class StoreSelectionWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    StoreSelectionWindow(QWidget *parent = nullptr, qint64 width = 100, qint64 height = 100);
+    StoreSelectionWindow(QWidget *parent = nullptr);
 
 signals:
     void storeSelected();
@@ -19,6 +19,7 @@ signals:
 
 private slots:
     void updateUserMenu(); // Slot to update the user menu
+    //void handleStoreButtonClicked(); // Slot to handle store button clicks
 
 private:
     void setupUserMenu();

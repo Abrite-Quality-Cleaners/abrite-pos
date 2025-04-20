@@ -13,13 +13,17 @@ LoginWindow::LoginWindow(QWidget *parent)
     QVBoxLayout *layout = new QVBoxLayout(this);
 
     usernameEdit = new QLineEdit(this);
+    usernameEdit->setPlaceholderText("Username");
+
     passwordEdit = new QLineEdit(this);
-    passwordEdit->setEchoMode(QLineEdit::Password);
+    passwordEdit->setPlaceholderText("Password");
+    passwordEdit->setEchoMode(QLineEdit::Password); // Hide password input
+
     loginButton = new QPushButton("Login", this);
 
     errorLabel = new QLabel(this);
     errorLabel->setStyleSheet("color: red;");
-    errorLabel->setVisible(false); // hidden by default
+    errorLabel->setVisible(false); // Hidden by default
 
     layout->addWidget(new QLabel("Username:"));
     layout->addWidget(usernameEdit);
@@ -28,7 +32,16 @@ LoginWindow::LoginWindow(QWidget *parent)
     layout->addWidget(loginButton);
     layout->addWidget(errorLabel);
 
+    setLayout(layout);
+
+    // Set window size
+    resize(900, 900);
+
+    // Connect the login button to the login slot
     connect(loginButton, &QPushButton::clicked, this, &LoginWindow::onLoginClicked);
+
+    // Connect pressing Enter in the password box to the login slot
+    connect(passwordEdit, &QLineEdit::returnPressed, this, &LoginWindow::onLoginClicked);
 
     loadUsers();
 }

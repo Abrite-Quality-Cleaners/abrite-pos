@@ -1,4 +1,5 @@
 #include "StoreSelectionWindow.h"
+#include "Store.h"
 #include "User.h"
 
 #include <QHBoxLayout>
@@ -11,7 +12,7 @@
 
 static const QStringList stores = {"Sparkle", "Abrite Deliveries"};
 
-StoreSelectionWindow::StoreSelectionWindow(QWidget *parent, qint64 width, qint64 height)
+StoreSelectionWindow::StoreSelectionWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     QWidget *central = new QWidget(this);
@@ -21,22 +22,25 @@ StoreSelectionWindow::StoreSelectionWindow(QWidget *parent, qint64 width, qint64
     layout->addItem(new QSpacerItem(10, 50), 2, 0, 1, stores.length());
 
     qint64 store_index = 0;
-    for (const QString &s : stores) {
-        QPushButton *storeButton = new QPushButton(s);
+    for (const QString &storeName : stores) {
+        QPushButton *storeButton = new QPushButton(storeName);
         storeButton->setFixedSize(300, 150);
         storeButton->setStyleSheet("font-size: 24px");
         layout->addWidget(storeButton, 1, store_index++, 1, 1);
+
+        // Connect the button to the slot
+        connect(storeButton, &QPushButton::clicked, this, [this, storeName]() {
+            Store::instance().setSelectedStore(storeName); // Update the Store singleton
+            emit storeSelected(); // Emit the storeSelected signal
+        });
     }
 
     setWindowTitle("Store Selection");
-    resize(width, height);
+    resize(900, 900); // Set window size
     setCentralWidget(central);
 
     // Set up the user menu
     setupUserMenu();
-
-    // Connect the User::instance() signal to the updateUserMenu slot
-    connect(&User::instance(), &User::userUpdated, this, &StoreSelectionWindow::updateUserMenu);
 }
 
 void StoreSelectionWindow::setupUserMenu()
