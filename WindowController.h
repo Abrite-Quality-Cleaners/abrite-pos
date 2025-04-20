@@ -21,6 +21,7 @@ private:
 private slots:
     void onLoginSuccess();
     void onStoreSelected();
+    void onLogoutRequested(); // Slot to handle logout
 };
 
 #endif // WINDOWCONTROLLER_H

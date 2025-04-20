@@ -1,11 +1,13 @@
 #ifndef USER_H
 #define USER_H
 
+#include <QObject>
 #include <QString>
 
-class User {
+class User : public QObject {
+    Q_OBJECT
+
 public:
-    // Singleton access method
     static User &instance();
 
     QString getUsername() const;
@@ -14,9 +16,11 @@ public:
     void setUsername(const QString &username);
     void setAdmin(bool isAdmin);
 
+signals:
+    void userUpdated(); // Signal emitted when the user is updated
+
 private:
-    // Private constructor to enforce singleton
-    User(const QString &username = "", bool isAdmin = false);
+    explicit User(const QString &username = "", bool isAdmin = false);
 
     QString username;
     bool admin;

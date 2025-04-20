@@ -11,8 +11,9 @@ WindowController::WindowController(QObject *parent)
     // Connect signals to slots
     connect(loginWindow, &LoginWindow::loginSuccess, this, &WindowController::onLoginSuccess);
     connect(storeWindow, &StoreSelectionWindow::storeSelected, this, &WindowController::onStoreSelected);
+    connect(storeWindow, &StoreSelectionWindow::logoutRequested, this, &WindowController::onLogoutRequested);
 }
-
+ 
 void WindowController::start()
 {
     loginWindow->show();
@@ -27,4 +28,10 @@ void WindowController::onLoginSuccess()
 void WindowController::onStoreSelected()
 {
     storeWindow->hide();
+}
+
+void WindowController::onLogoutRequested()
+{
+    storeWindow->hide();
+    loginWindow->show();
 }

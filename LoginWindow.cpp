@@ -5,6 +5,7 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QDebug>
+#include <QSettings>
 
 LoginWindow::LoginWindow(QWidget *parent)
     : QWidget(parent)
@@ -28,6 +29,8 @@ LoginWindow::LoginWindow(QWidget *parent)
     layout->addWidget(errorLabel);
 
     connect(loginButton, &QPushButton::clicked, this, &LoginWindow::onLoginClicked);
+
+    loadUsers();
 }
 
 void LoginWindow::onLoginClicked()
@@ -35,19 +38,43 @@ void LoginWindow::onLoginClicked()
     QString username = usernameEdit->text();
     QString password = passwordEdit->text();
 
-    // Example credentials (replace with file/database lookup)
-    if (username == "admin" && password == "password") {
-        User::instance().setUsername(username);
-        User::instance().setAdmin(true);
-        errorLabel->setVisible(false);  // hide previous error
-        emit loginSuccess();
-    } else if (username == "user" && password == "password") {
-        User::instance().setUsername(username);
-        User::instance().setAdmin(false);
-        errorLabel->setVisible(false);  // hide previous error
-        emit loginSuccess();
-    } else {
-        errorLabel->setText("Invalid username or password.");
-        errorLabel->setVisible(true);
+    // Check if the username exists in the map
+    if (users.contains(username)) {
+        QPair<QString, bool> userInfo = users.value(username);
+        QString storedPassword = userInfo.first;
+        bool isAdmin = userInfo.second;
+
+        if (password == storedPassword) {
+            User::instance().setUsername(username);
+            User::instance().setAdmin(isAdmin);
+            errorLabel->setVisible(false);  // hide previous error
+            emit loginSuccess();
+            return;
+        }
+    }
+
+    // If credentials are invalid
+    errorLabel->setText("Invalid username or password.");
+    errorLabel->setVisible(true);
+}
+
+void LoginWindow::loadUsers()
+{
+    QSettings settings("../users.ini", QSettings::IniFormat);
+
+    // Clear the map in case this method is called multiple times
+    users.clear();
+
+    // Iterate through all groups (usernames)
+    QStringList usernames = settings.childGroups();
+    for (const QString &username : usernames) {
+        settings.beginGroup(username);
+        QString password = settings.value("password").toString();
+        bool isAdmin = settings.value("isAdmin").toBool();
+        users.insert(username, qMakePair(password, isAdmin));
+        settings.endGroup();
+
+        // Print the username
+        qDebug() << "User loaded:" << username;
     }
 }
