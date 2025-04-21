@@ -1,4 +1,5 @@
 #include "DropoffWindow.h"
+#include "Customer.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -8,6 +9,7 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QStyle>
+#include <QTimer>
 
 DropoffWindow::DropoffWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -25,8 +27,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     customerNameEdit->setPlaceholderText("Enter customer name");
     dateTimeDisplay = new QLineEdit(this);
     dateTimeDisplay->setReadOnly(true);
-    dateTimeDisplay->setFixedWidth(180);
-    dateTimeDisplay->setText(QDateTime::currentDateTime().toString("MM/dd/yyyy hh:mm AP"));
+    dateTimeDisplay->setFixedWidth(200);
 
     topRow->addWidget(new QLabel("Ticket ID:"));
     topRow->addWidget(ticketIdDisplay);
@@ -57,8 +58,15 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     receiptTable->horizontalHeader()->setStretchLastSection(false);
     rightLayout->addWidget(receiptTable);
 
-    totalLabel = new QLabel("Total: $0.00");
+    totalLabel = new QLabel("Total: $0.00", this);
+    totalLabel->setStyleSheet("font-size: 18px; font-weight: bold;"); // Bold and increase font size
     rightLayout->addWidget(totalLabel);
+
+    // Add notes textbox
+    notesEdit = new QTextEdit(this);
+    notesEdit->setPlaceholderText("Enter notes about the order...");
+    notesEdit->setFixedHeight(100); // Set a fixed height for the notes textbox
+    rightLayout->addWidget(notesEdit);
 
     QHBoxLayout *btnRow = new QHBoxLayout();
 
@@ -68,6 +76,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     btnRow->addWidget(checkoutButton);
     connect(checkoutButton, &QPushButton::clicked, this, [=]() {
         qDebug() << "Check-out button clicked";
+        qDebug() << "Order Notes:" << notesEdit->toPlainText(); // Log the notes
         // Add logic for check-out functionality here
     });
 
@@ -88,6 +97,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
         qDebug() << "Void button clicked";
         receiptTable->setRowCount(0); // Clear the receipt table
         itemRowMap.clear();           // Clear the item map
+        notesEdit->clear();           // Clear the notes textbox
         updateTotal();                // Update the total to $0.00
     });
 
@@ -103,6 +113,18 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     loadTicketId("store.ini");
     updateTicketIdDisplay();
     loadPricesFromIni("../prices.ini");
+
+    // Connect the Customer singleton's signal to update the customer info
+    connect(&Customer::instance(), &Customer::customerUpdated, this, &DropoffWindow::updateCustomerInfo);
+
+    // Initialize the customer info
+    updateCustomerInfo();
+
+    // Initialize the date and time display
+    dateTimeTimer = new QTimer(this);
+    connect(dateTimeTimer, &QTimer::timeout, this, &DropoffWindow::updateDateTime);
+    dateTimeTimer->start(1000); // Update every second
+    updateDateTime(); // Initial update
 }
 
 DropoffWindow::~DropoffWindow()
@@ -270,4 +292,21 @@ void DropoffWindow::updateTotal()
         }
     }
     totalLabel->setText(QString("Total: $%1").arg(total, 0, 'f', 2));
+}
+
+void DropoffWindow::updateCustomerInfo() {
+    QString customerName = Customer::instance().getName();
+    QString customerPhone = Customer::instance().getPhone();
+
+    if (!customerName.isEmpty()) {
+        customerNameEdit->setText(customerName + " (" + customerPhone + ")");
+    } else {
+        customerNameEdit->setText("No customer selected");
+    }
+}
+
+void DropoffWindow::updateDateTime()
+{
+    QString currentDateTime = QDateTime::currentDateTime().toString("MM/dd/yyyy hh:mm:ss AP");
+    dateTimeDisplay->setText(currentDateTime);
 }

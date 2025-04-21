@@ -9,6 +9,8 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QMap>
+#include <QTextEdit>
+#include <QTimer>
 
 class DropoffWindow : public QMainWindow
 {
@@ -17,6 +19,10 @@ class DropoffWindow : public QMainWindow
 public:
     explicit DropoffWindow(QWidget *parent = nullptr);
     ~DropoffWindow();
+
+private slots:
+    void updateCustomerInfo(); // Slot to update customer info
+    void updateDateTime(); // Slot to update the date and time
 
 private:
     void initPrinter();
@@ -37,6 +43,8 @@ private:
     QTabWidget *tabWidget;
     QLabel *totalLabel;
     QMap<QString, int> itemRowMap;
+    QTextEdit *notesEdit; // Textbox for order notes
+    QTimer *dateTimeTimer; // Timer to update the date and time
 
     int ticketId;
     QString ticketFile = "ticket_id.txt";

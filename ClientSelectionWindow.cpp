@@ -1,5 +1,6 @@
 #include "ClientSelectionWindow.h"
 #include "Store.h"
+#include "Customer.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -76,6 +77,9 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
 
     // Connect Drop-off button to its slot
     connect(dropOffButton, &QPushButton::clicked, this, &ClientSelectionWindow::onDropOffClicked);
+
+    // Connect Pick-up button to its slot
+    connect(pickUpButton, &QPushButton::clicked, this, &ClientSelectionWindow::onPickUpClicked);
 }
 
 void ClientSelectionWindow::onSearch()
@@ -181,7 +185,50 @@ void ClientSelectionWindow::onRowSelected()
     pickUpButton->setEnabled(hasSelection);
 }
 
+// Slot for Drop-off button click
 void ClientSelectionWindow::onDropOffClicked()
 {
-    emit dropOffRequested(); // Emit the signal
+    // Ensure a row is selected
+    int selectedRow = resultTable->currentRow();
+    if (selectedRow >= 0) {
+        // Retrieve customer information from the selected row
+        QString firstName = resultTable->item(selectedRow, 0)->text();
+        QString lastName = resultTable->item(selectedRow, 1)->text();
+        QString phone = resultTable->item(selectedRow, 2)->text();
+
+        // Update the Customer singleton
+        Customer::instance().setName(firstName + " " + lastName);
+        Customer::instance().setPhone(phone);
+
+        qDebug() << "Customer updated for Drop-off:"
+                 << "Name:" << Customer::instance().getName()
+                 << "Phone:" << Customer::instance().getPhone();
+
+        // Emit the signal to transition to the DropoffWindow
+        emit dropOffRequested();
+    }
+}
+
+// Slot for Pick-up button click
+void ClientSelectionWindow::onPickUpClicked()
+{
+    // Ensure a row is selected
+    int selectedRow = resultTable->currentRow();
+    if (selectedRow >= 0) {
+        // Retrieve customer information from the selected row
+        QString firstName = resultTable->item(selectedRow, 0)->text();
+        QString lastName = resultTable->item(selectedRow, 1)->text();
+        QString phone = resultTable->item(selectedRow, 2)->text();
+
+        // Update the Customer singleton
+        Customer::instance().setName(firstName + " " + lastName);
+        Customer::instance().setPhone(phone);
+
+        qDebug() << "Customer updated for Pick-up:"
+                 << "Name:" << Customer::instance().getName()
+                 << "Phone:" << Customer::instance().getPhone();
+
+        // Emit the signal to transition to the PickUpWindow (if applicable)
+        emit pickUpRequested();
+    }
 }

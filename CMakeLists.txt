@@ -21,6 +21,7 @@ set(PROJECT_SOURCES
     DropoffWindow.cpp
     User.cpp
     Store.cpp
+    Customer.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
