@@ -1,22 +1,26 @@
 #include "LoginWindow.h"
 #include "User.h"
-#include <QVBoxLayout>
+#include <QGridLayout>
 #include <QPushButton>
 #include <QLineEdit>
 #include <QLabel>
+#include <QSpacerItem>
 #include <QDebug>
 #include <QSettings>
 
 LoginWindow::LoginWindow(QWidget *parent)
     : QWidget(parent)
 {
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
 
+    // Create widgets
+    QLabel *usernameLabel = new QLabel("Username:", this);
     usernameEdit = new QLineEdit(this);
-    usernameEdit->setPlaceholderText("Username");
+    usernameEdit->setPlaceholderText("Enter your username");
 
+    QLabel *passwordLabel = new QLabel("Password:", this);
     passwordEdit = new QLineEdit(this);
-    passwordEdit->setPlaceholderText("Password");
+    passwordEdit->setPlaceholderText("Enter your password");
     passwordEdit->setEchoMode(QLineEdit::Password); // Hide password input
 
     loginButton = new QPushButton("Login", this);
@@ -25,12 +29,21 @@ LoginWindow::LoginWindow(QWidget *parent)
     errorLabel->setStyleSheet("color: red;");
     errorLabel->setVisible(false); // Hidden by default
 
-    layout->addWidget(new QLabel("Username:"));
-    layout->addWidget(usernameEdit);
-    layout->addWidget(new QLabel("Password:"));
-    layout->addWidget(passwordEdit);
-    layout->addWidget(loginButton);
-    layout->addWidget(errorLabel);
+    // Add spacer items
+    layout->addItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding), 0, 0, 1, 3); // Top spacer
+    layout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum), 1, 0);       // Left spacer
+
+    // Add widgets to the grid
+    layout->addWidget(usernameLabel, 1, 1);
+    layout->addWidget(usernameEdit, 1, 2);
+    layout->addWidget(passwordLabel, 2, 1);
+    layout->addWidget(passwordEdit, 2, 2);
+    layout->addWidget(loginButton, 3, 2);
+    layout->addWidget(errorLabel, 4, 1, 1, 2, Qt::AlignCenter);
+
+    // Add bottom and right spacers
+    layout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum), 1, 3);       // Right spacer
+    layout->addItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding), 5, 0, 1, 3); // Bottom spacer
 
     setLayout(layout);
 
