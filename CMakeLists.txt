@@ -24,6 +24,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 # Project sources
 set(PROJECT_SOURCES
     main.cpp
+    CustomerDialog.cpp
     WindowController.cpp
     LoginWindow.cpp
     StoreSelectionWindow.cpp

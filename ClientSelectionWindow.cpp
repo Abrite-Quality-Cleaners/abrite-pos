@@ -1,6 +1,7 @@
 #include "ClientSelectionWindow.h"
 #include "Store.h"
 #include "Customer.h"
+#include "CustomerDialog.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -10,7 +11,9 @@
 #include <algorithm> // For std::max
 
 ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent),
+      addCustomerButton(new QPushButton("Add Customer", this)),
+      editCustomerButton(new QPushButton("Edit Customer", this))
 {
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
@@ -60,6 +63,10 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     buttonLayout->addWidget(pickUpButton);
     mainLayout->addLayout(buttonLayout);
 
+    // Add Customer and Edit Customer buttons
+    mainLayout->addWidget(addCustomerButton);
+    mainLayout->addWidget(editCustomerButton);
+
     setCentralWidget(centralWidget);
 
     // Set window size
@@ -80,6 +87,10 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
 
     // Connect Pick-up button to its slot
     connect(pickUpButton, &QPushButton::clicked, this, &ClientSelectionWindow::onPickUpClicked);
+
+    // Connect Add Customer and Edit Customer buttons to their slots
+    connect(addCustomerButton, &QPushButton::clicked, this, &ClientSelectionWindow::onAddCustomerClicked);
+    connect(editCustomerButton, &QPushButton::clicked, this, &ClientSelectionWindow::onEditCustomerClicked);
 }
 
 void ClientSelectionWindow::onSearch()
@@ -230,5 +241,33 @@ void ClientSelectionWindow::onPickUpClicked()
 
         // Emit the signal to transition to the PickUpWindow (if applicable)
         emit pickUpRequested();
+    }
+}
+
+void ClientSelectionWindow::onAddCustomerClicked() {
+    CustomerDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        // Handle adding a new customer
+        QMap<QString, QVariant> customerData = dialog.getCustomerData();
+        // Add customer to the database (use MongoManager or similar)
+        qDebug() << "Adding customer:" << customerData;
+    }
+}
+
+void ClientSelectionWindow::onEditCustomerClicked() {
+    // Example: Fetch existing customer data (replace with actual logic)
+    QMap<QString, QVariant> existingCustomerData = {
+        {"firstName", "John"},
+        {"lastName", "Doe"},
+        {"phoneNumber", "555-1234"},
+        {"email", "john.doe@example.com"}
+    };
+
+    CustomerDialog dialog(this, existingCustomerData);
+    if (dialog.exec() == QDialog::Accepted) {
+        // Handle editing the customer
+        QMap<QString, QVariant> updatedCustomerData = dialog.getCustomerData();
+        // Update customer in the database (use MongoManager or similar)
+        qDebug() << "Updating customer:" << updatedCustomerData;
     }
 }

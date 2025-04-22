@@ -22,6 +22,8 @@ private slots:
     void onRowSelected();    // Slot to enable buttons when a row is selected
     void onDropOffClicked(); // Slot to handle Drop-off button click
     void onPickUpClicked();  // Slot to handle Pick-up button click
+    void onAddCustomerClicked(); // Slot to handle Add Customer button click
+    void onEditCustomerClicked(); // Slot to handle Edit Customer button click
 
 private:
     void searchCsv(const QString &filePath, const QString &firstName, const QString &lastName, const QString &phone, const QString &ticket);
@@ -34,6 +36,8 @@ private:
     QTableWidget *resultTable;
     QPushButton *dropOffButton; // Drop-off button
     QPushButton *pickUpButton;  // Pick-up button
+    QPushButton *addCustomerButton; // Add Customer button
+    QPushButton *editCustomerButton; // Edit Customer button
 };
 
 #endif // CLIENTSELECTIONWINDOW_H
