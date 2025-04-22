@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QLineEdit>
+#include <QTextEdit>
 #include <QMap>
 #include <QVariant>
 
@@ -18,6 +19,14 @@ private:
     QLineEdit *lastNameEdit;
     QLineEdit *phoneNumberEdit;
     QLineEdit *emailEdit;
+
+    // New fields
+    QLineEdit *streetEdit;
+    QLineEdit *cityEdit;
+    QLineEdit *stateEdit;
+    QLineEdit *zipEdit;
+    QTextEdit *noteEdit;
+    QLineEdit *storeCreditEdit;
 };
 
 #endif // CUSTOMERDIALOG_H
