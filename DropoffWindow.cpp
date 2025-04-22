@@ -1,5 +1,6 @@
 #include "DropoffWindow.h"
 #include "Customer.h"
+#include "PaymentDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -77,6 +78,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     connect(checkoutButton, &QPushButton::clicked, this, [=]() {
         qDebug() << "Check-out button clicked";
         qDebug() << "Order Notes:" << notesEdit->toPlainText(); // Log the notes
+        handleCheckout(); // Call the checkout handler
         // Add logic for check-out functionality here
     });
 
@@ -85,20 +87,28 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     payButton->setMinimumWidth(100);
     btnRow->addWidget(payButton);
     connect(payButton, &QPushButton::clicked, this, [=]() {
-        qDebug() << "Pay button clicked";
-        // Add logic for payment functionality here
+        PaymentDialog paymentDialog(this);
+        if (paymentDialog.exec() == QDialog::Accepted) {
+            QString paymentMethod = paymentDialog.getSelectedPaymentMethod();
+            QString checkNumber = paymentDialog.getCheckNumber();
+
+            qDebug() << "Payment method selected:" << paymentMethod;
+            if (paymentMethod == "Check") {
+                qDebug() << "Check Number:" << checkNumber;
+            }
+
+            // Handle the selected payment method here
+        }
     });
 
-    // Create "Void" button
-    QPushButton *voidButton = new QPushButton("Void", this);
-    voidButton->setMinimumWidth(100);
-    btnRow->addWidget(voidButton);
-    connect(voidButton, &QPushButton::clicked, this, [=]() {
-        qDebug() << "Void button clicked";
-        receiptTable->setRowCount(0); // Clear the receipt table
-        itemRowMap.clear();           // Clear the item map
-        notesEdit->clear();           // Clear the notes textbox
-        updateTotal();                // Update the total to $0.00
+
+    // Create "Cancel" button
+    QPushButton *cancelButton = new QPushButton("Cancel", this);
+    cancelButton->setMinimumWidth(100);
+    btnRow->addWidget(cancelButton);
+    connect(cancelButton, &QPushButton::clicked, this, [=]() {
+        qDebug() << "Cancel button clicked";
+        emit dropoffDone(); // Emit the dropoffDone signal
     });
 
     rightLayout->addLayout(btnRow);
@@ -149,16 +159,17 @@ void DropoffWindow::updateTicketIdDisplay()
     ticketIdDisplay->setText(QString::number(ticketId));
 }
 
-void DropoffWindow::handleSubmit()
+void DropoffWindow::handleCheckout()
 {
     QFile f(ticketFile);
     if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&f);
-        out << ticketId + 1;
+        out << ticketId + 1; // Save the next ticket ID
     }
 
     QString client = customerNameEdit->text();
     if (client.isEmpty()) client = "Unknown";
+
     QString receipt = QString(
         "             Sparkle Cleaners\n"
         "            165 Oak Grove Ave.\n"
@@ -167,38 +178,58 @@ void DropoffWindow::handleSubmit()
         "PHONE : (508) 123 4567\n"
         "DROP  : %2\n"
         "PICKUP: %3\n\n"
-        "TICKET ID: %4 (Dryclean)\n"
         "PAYMENT  : On-pickup\n"
         "EMPLOYEE : NA\n\n"
-        "------------------------------------------\n"
-        "|GARMENT              |QUANTITY  |PRICE  |\n"
-        "------------------------------------------\n"
     ).arg(client,
           QDateTime::currentDateTime().toString("ddd MM/dd/yyyy hh:mm AP"),
-          QDateTime::currentDateTime().addDays(3).toString("ddd MM/dd/yyyy hh:mm AP"),
-          QString::number(ticketId));
+          QDateTime::currentDateTime().addDays(3).toString("ddd MM/dd/yyyy hh:mm AP"));
 
     double total = 0.0;
+    int currentTicketId = ticketId; // Start with the current ticket ID
+
     for (int row = 0; row < receiptTable->rowCount(); ++row) {
-        QString item = receiptTable->item(row, 0)->text();
+        QTableWidgetItem *itemCell = receiptTable->item(row, 0);
+
+        // Check if this is a header row (non-editable)
+        if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
+            // Add a new section header with the ticket ID
+            receipt += QString(
+                "------------------------------------------\n"
+                "TICKET ID: %1 (%2)\n"
+                "------------------------------------------\n"
+                "|GARMENT              |QUANTITY  |PRICE  |\n"
+                "------------------------------------------\n"
+            ).arg(currentTicketId).arg(itemCell->text());
+            currentTicketId++; // Increment the ticket ID for the next section
+            continue;
+        }
+
+        // Process item rows
+        QString item = itemCell->text();
         double price = receiptTable->item(row, 1)->text().toDouble();
         int qty = qobject_cast<QSpinBox *>(receiptTable->cellWidget(row, 2))->value();
         double subtotal = qty * price;
         total += subtotal;
+
         receipt += QString("%1%2%3\n")
             .arg(item.leftJustified(24))
             .arg(QString::number(qty).rightJustified(10))
             .arg(QString::number(subtotal, 'f', 2).rightJustified(10));
     }
 
-    receipt += QString("                       -------------------\n"
-                       "                       TOTAL:     $%1\n\n"
-                       "NOTE: <Notes>\n").arg(total, 0, 'f', 2);
+    receipt += QString(
+        "                       -------------------\n"
+        "                       TOTAL:     $%1\n\n"
+        "NOTE: %2\n"
+    ).arg(total, 0, 'f', 2).arg(notesEdit->toPlainText());
 
     receipt += "\n\n\n\n\n\n\n"; // Add some blank lines so the cut doesn't chop off part of the receipt
 
-    ticketId++;
+    ticketId = currentTicketId; // Update the ticket ID for the next transaction
     updateTicketIdDisplay();
+
+    qDebug() << "Receipt generated:\n";
+    printf("%s\n", receipt.toStdString().c_str());
 }
 
 void DropoffWindow::loadPricesFromIni(const QString &filename)
@@ -212,61 +243,124 @@ void DropoffWindow::loadPricesFromIni(const QString &filename)
             double price = s.value(key).toDouble(&ok);
             if (ok) items.append({key, price});
         }
-        tabWidget->addTab(createCategoryTab(items), cat);
+        // Pass the category name (tab name) to createCategoryTab
+        tabWidget->addTab(createCategoryTab(cat, items), cat);
         s.endGroup();
     }
 }
 
-QWidget *DropoffWindow::createCategoryTab(const QList<QPair<QString, double>> &items)
+QWidget *DropoffWindow::createCategoryTab(const QString &categoryName, const QList<QPair<QString, double>> &items)
 {
     QWidget *tab = new QWidget(this);
     QGridLayout *grid = new QGridLayout(tab);
+
     for (int i = 0; i < items.size(); ++i) {
-        QPushButton *btn = new QPushButton(QString("%1\n$%2").arg(items[i].first).arg(items[i].second, 0, 'f', 2));
+        const QString &itemName = items[i].first;
+        double price = items[i].second;
+
+        // Create a button for the item
+        QPushButton *btn = new QPushButton(QString("%1\n$%2").arg(itemName).arg(price, 0, 'f', 2), this);
+
+        // Connect the button's clicked signal to addItemToReceipt with the category name
         connect(btn, &QPushButton::clicked, this, [=]() {
-            addItemToReceipt(items[i].first, items[i].second);
+            addItemToReceipt(categoryName, itemName, price);
         });
+
+        // Add the button to the grid layout
         grid->addWidget(btn, i / 3, i % 3);
     }
+
     return tab;
 }
 
-void DropoffWindow::addItemToReceipt(const QString &name, double price)
+void DropoffWindow::addItemToReceipt(const QString &tabName, const QString &itemName, double price)
 {
-    if (itemRowMap.contains(name)) {
-        int row = itemRowMap[name];
-        auto *spin = qobject_cast<QSpinBox *>(receiptTable->cellWidget(row, 2));
-        spin->setValue(spin->value() + 1);
-    } else {
-        int row = receiptTable->rowCount();
-        receiptTable->insertRow(row);
-        itemRowMap[name] = row;
+    // Check if the header for this tab has already been added
+    if (!addedHeaders.contains(tabName)) {
+        // Add a header row for the tab
+        int headerRow = receiptTable->rowCount();
+        receiptTable->insertRow(headerRow);
 
-        receiptTable->setItem(row, 0, new QTableWidgetItem(name));
-        receiptTable->setItem(row, 1, new QTableWidgetItem(QString::number(price, 'f', 2)));
+        QTableWidgetItem *headerItem = new QTableWidgetItem(tabName);
+        headerItem->setFlags(Qt::NoItemFlags); // Make the header row non-editable
+        headerItem->setTextAlignment(Qt::AlignCenter);
+        headerItem->setBackground(Qt::lightGray); // Highlight the header row
+        receiptTable->setSpan(headerRow, 0, 1, receiptTable->columnCount()); // Span across all columns
+        receiptTable->setItem(headerRow, 0, headerItem);
 
-        auto *spin = new QSpinBox(this);
-        spin->setRange(1, 999);
-        spin->setValue(1);
-        receiptTable->setCellWidget(row, 2, spin);
-        connect(spin, QOverload<int>::of(&QSpinBox::valueChanged), this, [=]() {
-            updateTotal();
-        });
-
-        auto *rmBtn = new QPushButton();
-        rmBtn->setIcon(style()->standardIcon(QStyle::SP_TrashIcon));
-        rmBtn->setFixedWidth(50);
-        receiptTable->setCellWidget(row, 3, rmBtn);
-        connect(rmBtn, &QPushButton::clicked, this, [=]() {
-            for (int r = 0; r < receiptTable->rowCount(); ++r) {
-                if (receiptTable->cellWidget(r, 3) == sender()) {
-                    removeItem(r);
-                    break;
-                }
-            }
-        });
+        // Mark this tab as added
+        addedHeaders.insert(tabName);
     }
 
+    // Check if the item already exists in the receipt table
+    for (int row = 0; row < receiptTable->rowCount(); ++row) {
+        QTableWidgetItem *itemCell = receiptTable->item(row, 0);
+        qDebug() << "Checking row" << row << "for item" << itemName << " itemCell=" << itemCell;
+        if (itemCell && itemCell->text() == itemName) {
+            // Increment the quantity if the item already exists
+            QSpinBox *quantitySpinBox = qobject_cast<QSpinBox *>(receiptTable->cellWidget(row, 2));
+            if (quantitySpinBox) {
+                quantitySpinBox->setValue(quantitySpinBox->value() + 1);
+                updateTotal();
+            }
+            return; // Exit the method since the item is already handled
+        }
+    }
+
+    // Add the item row under the tab header if it doesn't already exist
+    int itemRow = receiptTable->rowCount();
+    receiptTable->insertRow(itemRow);
+
+    receiptTable->setItem(itemRow, 0, new QTableWidgetItem(itemName));
+    receiptTable->setItem(itemRow, 1, new QTableWidgetItem(QString::number(price, 'f', 2)));
+
+    // Add a quantity spinbox
+    QSpinBox *quantitySpinBox = new QSpinBox(this);
+    quantitySpinBox->setRange(1, 999);
+    quantitySpinBox->setValue(1);
+    receiptTable->setCellWidget(itemRow, 2, quantitySpinBox);
+
+    // Add a remove button
+    QPushButton *removeButton = new QPushButton("Remove", this);
+    receiptTable->setCellWidget(itemRow, 3, removeButton);
+    connect(removeButton, &QPushButton::clicked, this, [=]() {
+        // Dynamically determine the row of the button
+        for (int row = 0; row < receiptTable->rowCount(); ++row) {
+            if (receiptTable->cellWidget(row, 3) == removeButton) {
+                receiptTable->removeRow(row);
+                updateTotal(); // Update the total after removing the row
+
+                // Check if the section header should be removed
+                int headerRow = row - 1; // Assume the header is directly above the removed item
+                if (headerRow >= 0) {
+                    QTableWidgetItem *headerItem = receiptTable->item(headerRow, 0);
+                    if (headerItem && !headerItem->flags().testFlag(Qt::ItemIsEditable)) {
+                        // Check if there are any remaining items in this section
+                        bool hasItems = false;
+                        for (int i = headerRow + 1; i < receiptTable->rowCount(); ++i) {
+                            QTableWidgetItem *itemCell = receiptTable->item(i, 0);
+                            if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
+                                break; // Reached the next header or end of table
+                            }
+                            hasItems = true;
+                            break;
+                        }
+
+                        if (!hasItems) {
+                            // Remove the header row
+                            QString tabName = headerItem->text();
+                            receiptTable->removeRow(headerRow);
+                            addedHeaders.remove(tabName); // Remove the tab name from the addedHeaders set
+                        }
+                    }
+                }
+
+                break; // Exit the loop once the row is found and removed
+            }
+        }
+    });
+
+    // Optionally, update the total here
     updateTotal();
 }
 
@@ -275,22 +369,62 @@ void DropoffWindow::removeItem(int row)
     QString name = receiptTable->item(row, 0)->text();
     itemRowMap.remove(name);
     receiptTable->removeRow(row);
+
+    // Check if the section header should be removed
+    int headerRow = row - 1; // Assume the header is directly above the removed item
+    if (headerRow >= 0) {
+        QTableWidgetItem *headerItem = receiptTable->item(headerRow, 0);
+        if (headerItem && !headerItem->flags().testFlag(Qt::ItemIsEditable)) {
+            // Check if there are any remaining items in this section
+            bool hasItems = false;
+            for (int i = headerRow + 1; i < receiptTable->rowCount(); ++i) {
+                QTableWidgetItem *itemCell = receiptTable->item(i, 0);
+                if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
+                    break; // Reached the next header or end of table
+                }
+                hasItems = true;
+                break;
+            }
+
+            if (!hasItems) {
+                // Remove the header row
+                QString tabName = headerItem->text();
+                receiptTable->removeRow(headerRow);
+                addedHeaders.remove(tabName); // Remove the tab name from the addedHeaders set
+            }
+        }
+    }
+
+    // Rebuild the itemRowMap
     itemRowMap.clear();
-    for (int i = 0; i < receiptTable->rowCount(); ++i)
+    for (int i = 0; i < receiptTable->rowCount(); ++i) {
         itemRowMap[receiptTable->item(i, 0)->text()] = i;
+    }
+
     updateTotal();
 }
 
 void DropoffWindow::updateTotal()
 {
     double total = 0.0;
+
     for (int row = 0; row < receiptTable->rowCount(); ++row) {
+        QTableWidgetItem *itemCell = receiptTable->item(row, 0);
+
+        // Skip header rows (non-editable rows)
+        if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
+            continue;
+        }
+
+        // Get the price and quantity for the row
         double price = receiptTable->item(row, 1)->text().toDouble();
         QSpinBox *spin = qobject_cast<QSpinBox *>(receiptTable->cellWidget(row, 2));
         if (spin) {
             total += price * spin->value();
         }
     }
+
+    // Update the total label
     totalLabel->setText(QString("Total: $%1").arg(total, 0, 'f', 2));
 }
 

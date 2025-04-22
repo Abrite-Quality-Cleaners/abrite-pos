@@ -2,15 +2,13 @@
 #define WINDOWCONTROLLER_H
 
 #include <QObject>
-#include "ClientSelectionWindow.h"
-#include "DropoffWindow.h"
 
-// Forward declarations of your custom windows
 class LoginWindow;
 class StoreSelectionWindow;
+class ClientSelectionWindow;
+class DropoffWindow;
 
-class WindowController : public QObject
-{
+class WindowController : public QObject {
     Q_OBJECT
 
 public:
@@ -20,14 +18,15 @@ public:
 private slots:
     void onLoginSuccess();
     void onStoreSelected();
-    void onLogoutRequested(); // Slot to handle logout
-    void onDropOffRequested(); // Slot to handle Drop-off button click
+    void onLogoutRequested();
+    void onDropOffRequested();
+    void onDropoffDone(); // Slot for handling the dropoffDone signal
 
 private:
-    LoginWindow           *loginWindow;
-    StoreSelectionWindow  *storeWindow;
+    LoginWindow *loginWindow;
+    StoreSelectionWindow *storeWindow;
     ClientSelectionWindow *clientSelWindow;
-    DropoffWindow         *dropoffWindow;
+    DropoffWindow *dropoffWindow;
 };
 
 #endif // WINDOWCONTROLLER_H

@@ -11,6 +11,7 @@
 #include <QMap>
 #include <QTextEdit>
 #include <QTimer>
+#include <QSet>
 
 class DropoffWindow : public QMainWindow
 {
@@ -19,6 +20,9 @@ class DropoffWindow : public QMainWindow
 public:
     explicit DropoffWindow(QWidget *parent = nullptr);
     ~DropoffWindow();
+
+signals:
+    void dropoffDone(); // Signal emitted when the Cancel button is clicked
 
 private slots:
     void updateCustomerInfo(); // Slot to update customer info
@@ -29,10 +33,10 @@ private:
     void closePrinter();
     void loadTicketId(const QString &storeIniPath);
     void updateTicketIdDisplay();
-    void handleSubmit();
+    void handleCheckout();
     void loadPricesFromIni(const QString &filename);
-    QWidget *createCategoryTab(const QList<QPair<QString, double>> &items);
-    void addItemToReceipt(const QString &name, double price);
+    QWidget *createCategoryTab(const QString &categoryName, const QList<QPair<QString, double>> &items);
+    void addItemToReceipt(const QString &tabName, const QString &itemName, double price);
     void removeItem(int row);
     void updateTotal();
 
@@ -45,6 +49,7 @@ private:
     QMap<QString, int> itemRowMap;
     QTextEdit *notesEdit; // Textbox for order notes
     QTimer *dateTimeTimer; // Timer to update the date and time
+    QSet<QString> addedHeaders; // Tracks which tab headers have been added
 
     int ticketId;
     QString ticketFile = "ticket_id.txt";

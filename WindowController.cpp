@@ -17,6 +17,7 @@ WindowController::WindowController(QObject *parent)
     connect(storeWindow, &StoreSelectionWindow::storeSelected, this, &WindowController::onStoreSelected);
     connect(storeWindow, &StoreSelectionWindow::logoutRequested, this, &WindowController::onLogoutRequested);
     connect(clientSelWindow, &ClientSelectionWindow::dropOffRequested, this, &WindowController::onDropOffRequested); // Connect Drop-off signal
+    connect(dropoffWindow, &DropoffWindow::dropoffDone, this, &WindowController::onDropoffDone); // Connect dropoffDone signal
 }
  
 void WindowController::start()
@@ -46,4 +47,10 @@ void WindowController::onDropOffRequested()
 {
     clientSelWindow->hide(); // Hide the ClientSelectionWindow
     dropoffWindow->show();   // Show the DropoffWindow
+}
+
+void WindowController::onDropoffDone()
+{
+    dropoffWindow->hide(); // Hide the DropoffWindow
+    storeWindow->show();   // Show the StoreSelectionWindow
 }
