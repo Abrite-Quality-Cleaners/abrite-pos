@@ -56,7 +56,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     receiptTable->verticalHeader()->setVisible(false);
     receiptTable->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     receiptTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    receiptTable->horizontalHeader()->setStretchLastSection(false);
+    receiptTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     rightLayout->addWidget(receiptTable);
 
     totalLabel = new QLabel("Total: $0.00", this);

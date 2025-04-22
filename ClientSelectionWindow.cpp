@@ -9,6 +9,7 @@
 #include <QTextStream>
 #include <QDebug>
 #include <algorithm> // For std::max
+#include <QHeaderView>
 
 ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -39,6 +40,12 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     resultTable->setSelectionBehavior(QAbstractItemView::SelectRows); // Allow row selection
     resultTable->setSelectionMode(QAbstractItemView::SingleSelection);
 
+    // Set the table to stretch and take up as much space as possible
+    resultTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    // Make columns stretch proportionally
+    resultTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
     // Layout for input fields and button
     QHBoxLayout *inputLayout = new QHBoxLayout();
     inputLayout->addWidget(firstNameEdit);
@@ -48,8 +55,8 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     inputLayout->addWidget(searchButton);
 
     // Add widgets to the main layout
-    mainLayout->addLayout(inputLayout);
-    mainLayout->addWidget(resultTable);
+    mainLayout->addLayout(inputLayout, 0);
+    mainLayout->addWidget(resultTable, 1); // Add the table to the layout
 
     // Create Drop-off and Pick-up buttons
     QHBoxLayout *buttonLayout = new QHBoxLayout();
@@ -59,13 +66,18 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     dropOffButton->setEnabled(false); // Disabled by default
     pickUpButton->setEnabled(false);  // Disabled by default
 
+    // Add Drop-off and Pick-up buttons to the layout
     buttonLayout->addWidget(dropOffButton);
     buttonLayout->addWidget(pickUpButton);
-    mainLayout->addLayout(buttonLayout);
 
-    // Add Customer and Edit Customer buttons
-    mainLayout->addWidget(addCustomerButton);
-    mainLayout->addWidget(editCustomerButton);
+    // Add Add Customer and Edit Customer buttons to the same layout
+    buttonLayout->addWidget(addCustomerButton);
+    buttonLayout->addWidget(editCustomerButton);
+
+    // Add the button layout to the main layout
+    mainLayout->addLayout(buttonLayout, 0);
+
+    mainLayout->addStretch(); // Push content to the top
 
     setCentralWidget(centralWidget);
 
