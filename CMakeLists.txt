@@ -35,6 +35,7 @@ set(PROJECT_SOURCES
     Store.cpp
     Customer.cpp
     MongoManager.cpp
+    PickupWindow.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

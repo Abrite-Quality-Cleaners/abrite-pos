@@ -4,20 +4,24 @@
 #include "StoreSelectionWindow.h"
 #include "ClientSelectionWindow.h"
 #include "DropoffWindow.h"
+#include "PickupWindow.h"
 
 WindowController::WindowController(QObject *parent)
     : QObject(parent),
       loginWindow(new LoginWindow),
       storeWindow(new StoreSelectionWindow),
       clientSelWindow(new ClientSelectionWindow),
-      dropoffWindow(new DropoffWindow) // Initialize DropoffWindow
+      dropoffWindow(new DropoffWindow),
+      pickupWindow(new PickupWindow) // Initialize PickupWindow
 {
     // Connect signals to slots
     connect(loginWindow, &LoginWindow::loginSuccess, this, &WindowController::onLoginSuccess);
     connect(storeWindow, &StoreSelectionWindow::storeSelected, this, &WindowController::onStoreSelected);
     connect(storeWindow, &StoreSelectionWindow::logoutRequested, this, &WindowController::onLogoutRequested);
     connect(clientSelWindow, &ClientSelectionWindow::dropOffRequested, this, &WindowController::onDropOffRequested); // Connect Drop-off signal
+    connect(clientSelWindow, &ClientSelectionWindow::pickUpRequested, this, &WindowController::onPickUpRequested); // Connect Pick-up signal
     connect(dropoffWindow, &DropoffWindow::dropoffDone, this, &WindowController::onDropoffDone); // Connect dropoffDone signal
+    connect(pickupWindow, &PickupWindow::pickupDone, this, &WindowController::onPickupDone); // Connect pickupDone signal
 }
  
 void WindowController::start()
@@ -53,4 +57,16 @@ void WindowController::onDropoffDone()
 {
     dropoffWindow->hide(); // Hide the DropoffWindow
     storeWindow->show();   // Show the StoreSelectionWindow
+}
+
+void WindowController::onPickUpRequested()
+{
+    clientSelWindow->hide(); // Hide the ClientSelectionWindow
+    pickupWindow->show();    // Show the PickupWindow
+}
+
+void WindowController::onPickupDone()
+{
+    pickupWindow->hide(); // Hide the PickupWindow
+    clientSelWindow->show(); // Show the ClientSelectionWindow
 }
