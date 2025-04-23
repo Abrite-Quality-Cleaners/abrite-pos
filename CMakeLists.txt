@@ -17,25 +17,9 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 find_package(mongocxx REQUIRED)
 find_package(bsoncxx REQUIRED)
 
-# Add Google Test
-find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
-
-# Project sources
-set(PROJECT_SOURCES
-    main.cpp
-    CustomerDialog.cpp
-    WindowController.cpp
-    LoginWindow.cpp
-    StoreSelectionWindow.cpp
-    ClientSelectionWindow.cpp
-    DropoffWindow.cpp
-    PaymentDialog.cpp
-    User.cpp
-    Store.cpp
-    Customer.cpp
-    MongoManager.cpp
-    PickupWindow.cpp
+file(GLOB_RECURSE PROJECT_SOURCES
+    src/*.cpp
+    include/*.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -59,14 +43,21 @@ endif()
 target_link_libraries(abrite-pos PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
 # Link MongoDB C++ Driver libraries
-target_include_directories(abrite-pos PRIVATE /usr/local/include/mongocxx/v_noabi /usr/local/include/bsoncxx/v_noabi)
-link_directories({/usr/local/lib})
+target_include_directories(abrite-pos PRIVATE include /usr/local/include/mongocxx/v_noabi /usr/local/include/bsoncxx/v_noabi)
 target_link_libraries(abrite-pos PRIVATE mongocxx bsoncxx)
 
-# Add the test executable
-add_executable(MongoManagerTest MongoManagerTest.cpp MongoManager.cpp)
-target_include_directories(MongoManagerTest PRIVATE /usr/local/include/mongocxx/v_noabi /usr/local/include/bsoncxx/v_noabi)
-link_directories({/usr/local/lib})
+# Add Google Test
+find_package(GTest REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
+
+# Mongo Test
+set(MONGO_TEST_SOURCES
+    src/MongoManager.cpp
+    include/MongoManager.h
+    test/MongoManagerTest.cpp
+)
+add_executable(MongoManagerTest ${MONGO_TEST_SOURCES})
+target_include_directories(MongoManagerTest PRIVATE include /usr/local/include/mongocxx/v_noabi /usr/local/include/bsoncxx/v_noabi)
 target_link_libraries(MongoManagerTest PRIVATE GTest::GTest GTest::Main mongocxx bsoncxx Qt${QT_VERSION_MAJOR}::Widgets)
 
 # Set target properties

@@ -117,7 +117,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     masterLayout->addLayout(mainLayout);
 
     setCentralWidget(central);
-    resize(900, 900);
+    resize(1280, 1024);
     setWindowTitle("Dropoff Interface");
 
     loadTicketId("store.ini");
@@ -266,8 +266,8 @@ QWidget *DropoffWindow::createCategoryTab(const QString &categoryName, const QLi
             addItemToReceipt(categoryName, itemName, price);
         });
 
-        // Add the button to the grid layout
-        grid->addWidget(btn, i / 3, i % 3);
+        // Add the button to the grid layout (4 widgets per row)
+        grid->addWidget(btn, i / 4, i % 4);
     }
 
     return tab;

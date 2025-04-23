@@ -7,7 +7,7 @@ export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ```
 3. from the top of the `abrite-pos` repo execute the following
 ```
-cmake .. && cmake --build . && ./abrite-pos
+cmake -B build && cmake --build build && cd build && ./abrite-pos
 ```
 
 ## Install MongoDB
