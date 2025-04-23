@@ -1,13 +1,13 @@
 # abrite-pos
 ## Build `abrite-pos`
-From the top of the `abrite-pos` repo execute the following
+1. Install the dependencies below (Google-Test is only needed to run unit tests)
+1. Execute the following to add the mongo and bson libraries to the LD_LIBRARY_PATH
+```
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+```
+3. from the top of the `abrite-pos` repo execute the following
 ```
 cmake .. && cmake --build . && ./abrite-pos
-```
-
-## Install Google-Test
-```
-sudo apt install libgtest-dev
 ```
 
 ## Install MongoDB
@@ -75,4 +75,9 @@ ls /usr/local/lib/mongocxx/ | grep mongocxx
 ls /usr/local/lib | grep bsoncxx
 ls /usr/local/include/mongocxx
 ls /usr/local/include/bsoncxx
+```
+
+## Install Google-Test
+```
+sudo apt install libgtest-dev
 ```
