@@ -1,5 +1,5 @@
 #include "PickupWindow.h"
-#include "Customer.h"
+#include "Session.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -138,8 +138,8 @@ void PickupWindow::handleCheckout() {
 }
 
 void PickupWindow::updateCustomerInfo() {
-    QString customerName = Customer::instance().getName();
-    QString customerPhone = Customer::instance().getPhone();
+    QString customerName = Session::instance().getCustomer()["firstName"].toString() + " " + Session::instance().getCustomer()["lastName"].toString();
+    QString customerPhone = Session::instance().getCustomer()["phoneNumber"].toString();
 
     if (!customerName.isEmpty()) {
         customerNameEdit->setText(customerName + " (" + customerPhone + ")");

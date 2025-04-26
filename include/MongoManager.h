@@ -10,6 +10,7 @@
 #include <mongocxx/instance.hpp>
 #include <mongocxx/database.hpp>
 #include <bsoncxx/json.hpp>
+#include "Customer.h" // Include the Customer header file
 
 class MongoManager : public QObject {
     Q_OBJECT
@@ -20,8 +21,11 @@ public:
 
     // Customer operations
     QString addCustomer(const QMap<QString, QVariant> &customerData);
+    QString addCustomer(const Customer &customer);
     QMap<QString, QVariant> getCustomer(const QString &customerId);
+    Customer getCustomerById(const QString &customerId);
     bool updateCustomer(const QString &customerId, const QMap<QString, QVariant> &updatedData);
+    bool updateCustomer(const Customer &customer);
     bool deleteCustomer(const QString &customerId);
 
     // Order operations

@@ -2,6 +2,7 @@
 #include "Store.h"
 #include "Customer.h"
 #include "CustomerDialog.h"
+#include "Session.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -219,13 +220,16 @@ void ClientSelectionWindow::onDropOffClicked()
         QString lastName = resultTable->item(selectedRow, 1)->text();
         QString phone = resultTable->item(selectedRow, 2)->text();
 
-        // Update the Customer singleton
-        Customer::instance().setName(firstName + " " + lastName);
-        Customer::instance().setPhone(phone);
+        // Update the Session singleton
+        Session::instance().setCustomer({
+            {"firstName", firstName},
+            {"lastName", lastName},
+            {"phoneNumber", phone}
+        });
 
         qDebug() << "Customer updated for Drop-off:"
-                 << "Name:" << Customer::instance().getName()
-                 << "Phone:" << Customer::instance().getPhone();
+                 << "Name:" << Session::instance().getCustomer()["firstName"].toString() + " " + Session::instance().getCustomer()["lastName"].toString()
+                 << "Phone:" << Session::instance().getCustomer()["phoneNumber"].toString();
 
         // Emit the signal to transition to the DropoffWindow
         emit dropOffRequested();
@@ -243,13 +247,16 @@ void ClientSelectionWindow::onPickUpClicked()
         QString lastName = resultTable->item(selectedRow, 1)->text();
         QString phone = resultTable->item(selectedRow, 2)->text();
 
-        // Update the Customer singleton
-        Customer::instance().setName(firstName + " " + lastName);
-        Customer::instance().setPhone(phone);
+        // Update the Session singleton
+        Session::instance().setCustomer({
+            {"firstName", firstName},
+            {"lastName", lastName},
+            {"phoneNumber", phone}
+        });
 
         qDebug() << "Customer updated for Pick-up:"
-                 << "Name:" << Customer::instance().getName()
-                 << "Phone:" << Customer::instance().getPhone();
+                 << "Name:" << Session::instance().getCustomer()["firstName"].toString() + " " + Session::instance().getCustomer()["lastName"].toString()
+                 << "Phone:" << Session::instance().getCustomer()["phoneNumber"].toString();
 
         // Emit the signal to transition to the PickUpWindow (if applicable)
         emit pickUpRequested();

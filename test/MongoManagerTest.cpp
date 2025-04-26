@@ -1,5 +1,7 @@
 #include "MongoManager.h"
 #include <gtest/gtest.h>
+#include "Customer.h"
+#include "Address.h"
 
 class MongoManagerTest : public ::testing::Test {
 protected:
@@ -98,4 +100,31 @@ TEST_F(MongoManagerTest, AddAndGetOrder) {
 
     // Optionally, dump the entire database
     mongoManager->dumpDatabase();
+}
+
+TEST_F(MongoManagerTest, AddAndRetrieveCustomerObject) {
+    Customer customer;
+    customer.firstName = "John";
+    customer.lastName = "Doe";
+    customer.phoneNumber = "555-1234";
+    customer.email = "john.doe@example.com";
+    customer.address = Address("123 Main St", "Springfield", "IL", "62704");
+    customer.note = "Preferred customer";
+    customer.balance = 50.0;
+    customer.storeCreditBalance = 20.0;
+
+    QString customerId = mongoManager->addCustomer(customer);
+    ASSERT_FALSE(customerId.isEmpty());
+
+    Customer fetchedCustomer = mongoManager->getCustomerById(customerId);
+    ASSERT_EQ(fetchedCustomer.firstName, "John");
+    ASSERT_EQ(fetchedCustomer.lastName, "Doe");
+    ASSERT_EQ(fetchedCustomer.phoneNumber, "555-1234");
+    ASSERT_EQ(fetchedCustomer.email, "john.doe@example.com");
+    ASSERT_EQ(fetchedCustomer.address.street, "123 Main St");
+    ASSERT_EQ(fetchedCustomer.address.city, "Springfield");
+    ASSERT_EQ(fetchedCustomer.address.state, "IL");
+    ASSERT_EQ(fetchedCustomer.address.zip, "62704");
+    ASSERT_EQ(fetchedCustomer.balance, 50.0);
+    ASSERT_EQ(fetchedCustomer.storeCreditBalance, 20.0);
 }

@@ -8,6 +8,8 @@
 #include <mongocxx/uri.hpp>
 #include <mongocxx/exception/exception.hpp>
 #include <bsoncxx/json.hpp>
+#include "Customer.h"
+#include "Address.h"
 
 MongoManager::MongoManager(const QString &connectionString, const QString &dbName, QObject *parent)
     : QObject(parent), connectionString(connectionString), dbName(dbName), client(mongocxx::uri(connectionString.toStdString())) {
@@ -275,4 +277,63 @@ void MongoManager::dumpDatabase() {
     } catch (const mongocxx::exception &e) {
         qDebug() << "Error dumping database:" << e.what();
     }
+}
+
+QString MongoManager::addCustomer(const Customer &customer) {
+    QMap<QString, QVariant> customerData = {
+        {"firstName", customer.firstName},
+        {"lastName", customer.lastName},
+        {"phoneNumber", customer.phoneNumber},
+        {"email", customer.email},
+        {"address", QMap<QString, QVariant>{
+            {"street", customer.address.street},
+            {"city", customer.address.city},
+            {"state", customer.address.state},
+            {"zip", customer.address.zip}
+        }},
+        {"note", customer.note},
+        {"balance", customer.balance},
+        {"storeCreditBalance", customer.storeCreditBalance}
+    };
+    return addCustomer(customerData);
+}
+
+Customer MongoManager::getCustomerById(const QString &customerId) {
+    QMap<QString, QVariant> data = getCustomer(customerId);
+    Customer customer;
+    customer.id = customerId;
+    customer.firstName = data["firstName"].toString();
+    customer.lastName = data["lastName"].toString();
+    customer.phoneNumber = data["phoneNumber"].toString();
+    customer.email = data["email"].toString();
+    QMap<QString, QVariant> addressData = data["address"].toMap();
+    customer.address = Address(
+        addressData["street"].toString(),
+        addressData["city"].toString(),
+        addressData["state"].toString(),
+        addressData["zip"].toString()
+    );
+    customer.note = data["note"].toString();
+    customer.balance = data["balance"].toDouble();
+    customer.storeCreditBalance = data["storeCreditBalance"].toDouble();
+    return customer;
+}
+
+bool MongoManager::updateCustomer(const Customer &customer) {
+    QMap<QString, QVariant> updatedData = {
+        {"firstName", customer.firstName},
+        {"lastName", customer.lastName},
+        {"phoneNumber", customer.phoneNumber},
+        {"email", customer.email},
+        {"address", QMap<QString, QVariant>{
+            {"street", customer.address.street},
+            {"city", customer.address.city},
+            {"state", customer.address.state},
+            {"zip", customer.address.zip}
+        }},
+        {"note", customer.note},
+        {"balance", customer.balance},
+        {"storeCreditBalance", customer.storeCreditBalance}
+    };
+    return updateCustomer(customer.id, updatedData);
 }

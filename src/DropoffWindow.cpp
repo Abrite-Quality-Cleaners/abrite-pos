@@ -11,6 +11,7 @@
 #include <QDebug>
 #include <QStyle>
 #include <QTimer>
+#include "Session.h"
 
 DropoffWindow::DropoffWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -125,7 +126,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     loadPricesFromIni("../prices.ini");
 
     // Connect the Customer singleton's signal to update the customer info
-    connect(&Customer::instance(), &Customer::customerUpdated, this, &DropoffWindow::updateCustomerInfo);
+    //connect(&Session::instance(), &Session::customerUpdated, this, &DropoffWindow::updateCustomerInfo);
 
     // Initialize the customer info
     updateCustomerInfo();
@@ -429,8 +430,8 @@ void DropoffWindow::updateTotal()
 }
 
 void DropoffWindow::updateCustomerInfo() {
-    QString customerName = Customer::instance().getName();
-    QString customerPhone = Customer::instance().getPhone();
+    QString customerName = Session::instance().getCustomer()["firstName"].toString() + " " + Session::instance().getCustomer()["lastName"].toString();
+    QString customerPhone = Session::instance().getCustomer()["phoneNumber"].toString();
 
     if (!customerName.isEmpty()) {
         customerNameEdit->setText(customerName + " (" + customerPhone + ")");
