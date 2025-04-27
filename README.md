@@ -94,3 +94,20 @@ ls /usr/local/include/bsoncxx
 ```
 sudo apt install libgtest-dev
 ```
+
+## Dumping and Restoring Databases
+### All Databases
+```
+mongodump --host localhost --port 27017 --out /tmp/mongo_backup
+```
+```
+mongorestore --host localhost --port 27017 /tmp/mongo_backup
+```
+
+### Select Databases
+```
+mongodump --host localhost --port 27017 --db <database_name> --out /tmp/mongo_backup
+```
+```
+mongorestore --host localhost --port 27017 --db <database_name> /tmp/mongo_backup/<database_name>
+```

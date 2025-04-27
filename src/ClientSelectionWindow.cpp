@@ -36,8 +36,8 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
 
     // Create result table
     resultTable = new QTableWidget(this);
-    resultTable->setColumnCount(6); // Number of fields to display
-    resultTable->setHorizontalHeaderLabels({"First Name", "Last Name", "Phone", "Ticket", "Order Date", "Balance"});
+    resultTable->setColumnCount(5); // Number of fields to display
+    resultTable->setHorizontalHeaderLabels({"First Name", "Last Name", "Phone", "Balance", "Address"});
     resultTable->setEditTriggers(QAbstractItemView::NoEditTriggers); // Make the table read-only
     resultTable->setSelectionBehavior(QAbstractItemView::SelectRows); // Allow row selection
     resultTable->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -123,8 +123,20 @@ void ClientSelectionWindow::onSearch() {
         resultTable->setItem(row, 0, new QTableWidgetItem(customer["firstName"].toString()));
         resultTable->setItem(row, 1, new QTableWidgetItem(customer["lastName"].toString()));
         resultTable->setItem(row, 2, new QTableWidgetItem(customer["phoneNumber"].toString()));
-        resultTable->setItem(row, 3, new QTableWidgetItem(customer["ticket"].toString()));
+        resultTable->setItem(row, 3, new QTableWidgetItem(customer["balance"].toString()));
+
+        QMap<QString, QVariant> address = customer["address"].toMap();
+        QString fullAddress = address["street"].toString() + ", " +
+                              address["city"].toString() + ", " +
+                              address["state"].toString() + " " +
+                              address["zip"].toString();
+
+        resultTable->setItem(row, 4, new QTableWidgetItem(fullAddress));
     }
+
+    // Resize columns and rows to fit the content
+    resultTable->resizeColumnsToContents();
+    //resultTable->resizeRowsToContents();
 }
 
 void ClientSelectionWindow::onRowSelected()
@@ -192,10 +204,17 @@ void ClientSelectionWindow::onPickUpClicked()
 void ClientSelectionWindow::onAddCustomerClicked() {
     CustomerDialog dialog(this);
     if (dialog.exec() == QDialog::Accepted) {
-        // Handle adding a new customer
+        // Get the customer data from the dialog
         QMap<QString, QVariant> customerData = dialog.getCustomerData();
-        // Add customer to the database (use MongoManager or similar)
-        qDebug() << "Adding customer:" << customerData;
+
+        // Add the customer to the database
+        QString customerId = Session::instance().getMongoManager().addCustomer(customerData);
+
+        if (!customerId.isEmpty()) {
+            qDebug() << "Customer added successfully with ID:" << customerId;
+        } else {
+            qDebug() << "Failed to add customer.";
+        }
     }
 }
 

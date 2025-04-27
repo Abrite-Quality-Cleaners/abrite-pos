@@ -5,6 +5,7 @@
 #include <QMap>
 #include <QVariant>
 #include <memory>
+#include <QDebug>
 #include "User.h"
 #include "MongoManager.h"
 
@@ -35,12 +36,12 @@ public:
     void setCustomer(const QMap<QString, QVariant>& customerData) { customer = customerData; emit customerUpdated(); }
 
     // Database-related methods
-    void setDatabase(const QString& connectionString, const QString& dbName) {
-        // TODO: Make sure the old database gets closed properly if needed
-        mongoManager = new MongoManager(connectionString, dbName);
-    }
-
-    MongoManager& getMongoManager() {
+    MongoManager& getMongoManager(const QString &connectionString = "mongodb://localhost:27017", 
+                                  const QString &dbName = "default-database") {
+        if (!mongoManager) {
+            mongoManager = std::make_unique<MongoManager>(connectionString, dbName);
+            qDebug() << "MongoManager created with database:" << dbName;
+        }
         return *mongoManager;
     }
 
@@ -55,7 +56,7 @@ private:
     User user;
     QString storeName;
     QMap<QString, QVariant> customer;
-    MongoManager* mongoManager;
+    std::unique_ptr<MongoManager> mongoManager;
 };
 
 #endif // SESSION_H

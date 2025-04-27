@@ -113,7 +113,7 @@ QString MongoManager::addCustomer(const QMap<QString, QVariant> &customerData) {
     }
 
     try {
-        auto collection = database["customers"];
+        auto collection = database["Customers"];
         auto result = collection.insert_one(toBson(customerData));
         if (result.has_value()) {
             return QString::fromStdString(result->inserted_id().get_oid().value.to_string());
@@ -127,7 +127,7 @@ QString MongoManager::addCustomer(const QMap<QString, QVariant> &customerData) {
 // Get a customer by ID
 QMap<QString, QVariant> MongoManager::getCustomer(const QString &customerId) {
     try {
-        auto collection = database["customers"];
+        auto collection = database["Customers"];
         auto result = collection.find_one(bsoncxx::builder::stream::document{} << "_id" << bsoncxx::oid(customerId.toStdString()) << bsoncxx::builder::stream::finalize);
         if (result) {
             return fromBson(result->view());
@@ -141,7 +141,7 @@ QMap<QString, QVariant> MongoManager::getCustomer(const QString &customerId) {
 // Update a customer
 bool MongoManager::updateCustomer(const QString &customerId, const QMap<QString, QVariant> &updatedData) {
     try {
-        auto collection = database["customers"];
+        auto collection = database["Customers"];
         auto result = collection.update_one(
             bsoncxx::builder::stream::document{} << "_id" << bsoncxx::oid(customerId.toStdString()) << bsoncxx::builder::stream::finalize,
             bsoncxx::builder::stream::document{} << "$set" << toBson(updatedData).view() << bsoncxx::builder::stream::finalize);
@@ -155,7 +155,7 @@ bool MongoManager::updateCustomer(const QString &customerId, const QMap<QString,
 // Delete a customer
 bool MongoManager::deleteCustomer(const QString &customerId) {
     try {
-        auto collection = database["customers"];
+        auto collection = database["Customers"];
         auto result = collection.delete_one(bsoncxx::builder::stream::document{} << "_id" << bsoncxx::oid(customerId.toStdString()) << bsoncxx::builder::stream::finalize);
         return result && result->deleted_count() > 0;
     } catch (const mongocxx::exception &e) {
@@ -440,4 +440,14 @@ QList<QMap<QString, QVariant>> MongoManager::searchCustomers(const QString &firs
     }
 
     return customers;
+}
+
+void MongoManager::changeDatabase(const QString &dbName) {
+    try {
+        this->dbName = dbName;
+        database = client[dbName.toStdString()];
+        qDebug() << "Switched to MongoDB database:" << dbName;
+    } catch (const mongocxx::exception &e) {
+        qDebug() << "Error switching database:" << e.what();
+    }
 }

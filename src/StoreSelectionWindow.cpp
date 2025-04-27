@@ -39,6 +39,8 @@ StoreSelectionWindow::StoreSelectionWindow(QWidget *parent)
     sparkleButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
     connect(sparkleButton, &QPushButton::clicked, this, [this]() {
         Store::instance().setSelectedStore("Sparkle");
+        //Session::instance().setDatabase("mongodb://localhost:27017", "SparkleCleaners");
+        Session::instance().getMongoManager().changeDatabase("SparkleCleaners");
         emit storeSelected();
     });
 
@@ -46,14 +48,15 @@ StoreSelectionWindow::StoreSelectionWindow(QWidget *parent)
     abriteButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
     connect(abriteButton, &QPushButton::clicked, this, [this]() {
         Store::instance().setSelectedStore("Abrite Deliveries");
-        Session::instance().setDatabase("mongodb://localhost:27017", "AbriteDeliveries");
+        //Session::instance().setDatabase("mongodb://localhost:27017", "AbriteDeliveries");
+        Session::instance().getMongoManager().changeDatabase("AbriteDeliveries");
         emit storeSelected();
     });
 
-    QPushButton *communityButton = new QPushButton("Community Cleaners");
+    QPushButton *communityButton = new QPushButton("");
     communityButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
     
-    QPushButton *westportButton = new QPushButton("Westport");
+    QPushButton *westportButton = new QPushButton("Dump Databases");
     westportButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
 
     QPushButton *financesButton = new QPushButton("Finances");

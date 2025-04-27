@@ -44,6 +44,8 @@ public:
     void dumpCollection(const QString &collectionName) const;
     void dumpDatabase();
 
+    void changeDatabase(const QString &dbName);
+
 private:
 
     mongocxx::instance mongoInstance; // MongoDB driver instance
