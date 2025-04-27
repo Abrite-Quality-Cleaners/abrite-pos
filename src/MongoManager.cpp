@@ -10,6 +10,7 @@
 #include <bsoncxx/json.hpp>
 #include "Customer.h"
 #include "Address.h"
+#include "Order.h"
 
 MongoManager::MongoManager(const QString &connectionString, const QString &dbName, QObject *parent)
     : QObject(parent), connectionString(connectionString), dbName(dbName), client(mongocxx::uri(connectionString.toStdString())) {
@@ -336,4 +337,53 @@ bool MongoManager::updateCustomer(const Customer &customer) {
         {"storeCreditBalance", customer.storeCreditBalance}
     };
     return updateCustomer(customer.id, updatedData);
+}
+
+QString MongoManager::addOrder(const Order &order) {
+    QMap<QString, QVariant> orderData = {
+        {"customerId", order.customerId},
+        {"store", order.store},
+        {"orderItems", QVariant::fromValue(order.orderItems)},
+        {"orderTotal", order.orderTotal},
+        {"status", order.status},
+        {"ticketNumber", order.ticketNumber},
+        {"dropoffDate", order.dropoffDate},
+        {"dropoffEmployee", order.dropoffEmployee},
+        {"pickupDate", order.pickupDate},
+        {"pickupEmployee", order.pickupEmployee},
+        {"paymentDate", order.paymentDate},
+        {"paymentType", order.paymentType},
+        {"paymentEmployee", order.paymentEmployee},
+        {"voidDate", order.voidDate},
+        {"voidEmployee", order.voidEmployee},
+        {"orderNote", order.orderNote},
+        {"rackNumber", order.rackNumber},
+        {"orderReadyDate", order.orderReadyDate}
+    };
+    return addOrder(orderData);
+}
+
+Order MongoManager::getOrderById(const QString &orderId) {
+    QMap<QString, QVariant> data = getOrder(orderId);
+    Order order;
+    order.id = orderId;
+    order.customerId = data["customerId"].toString();
+    order.store = data["store"].toString();
+    order.orderItems = data["orderItems"].value<QList<OrderCategory>>();
+    order.orderTotal = data["orderTotal"].toDouble();
+    order.status = data["status"].toString();
+    order.ticketNumber = data["ticketNumber"].toString();
+    order.dropoffDate = data["dropoffDate"].toString();
+    order.dropoffEmployee = data["dropoffEmployee"].toString();
+    order.pickupDate = data["pickupDate"].toString();
+    order.pickupEmployee = data["pickupEmployee"].toString();
+    order.paymentDate = data["paymentDate"].toString();
+    order.paymentType = data["paymentType"].toString();
+    order.paymentEmployee = data["paymentEmployee"].toString();
+    order.voidDate = data["voidDate"];
+    order.voidEmployee = data["voidEmployee"];
+    order.orderNote = data["orderNote"].toString();
+    order.rackNumber = data["rackNumber"].toString();
+    order.orderReadyDate = data["orderReadyDate"].toString();
+    return order;
 }

@@ -5,9 +5,22 @@
 ```
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ```
-3. from the top of the `abrite-pos` repo execute the following
+3. From the top of the `abrite-pos` repo execute the following to build the application
 ```
-cmake -B build && cmake --build build && cd build && ./abrite-pos
+make -S . -B build && cmake --build build -- -j`nproc`
+```
+4. Enter the build directory
+```
+cd build
+```
+5. Launch the application
+```
+./abrite-pos
+```
+
+## Installing Dependencies Ubuntu 25.04
+```
+sudo apt install -y git cmake g++ qt6-base-dev gnupg curl pkg-config libssl-dev libgtest-dev
 ```
 
 ## Install MongoDB

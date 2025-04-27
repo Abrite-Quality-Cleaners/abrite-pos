@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include "Customer.h"
 #include "Address.h"
+#include "Order.h"
 
 class MongoManagerTest : public ::testing::Test {
 protected:
@@ -127,4 +128,43 @@ TEST_F(MongoManagerTest, AddAndRetrieveCustomerObject) {
     ASSERT_EQ(fetchedCustomer.address.zip, "62704");
     ASSERT_EQ(fetchedCustomer.balance, 50.0);
     ASSERT_EQ(fetchedCustomer.storeCreditBalance, 20.0);
+}
+
+TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
+    Order order;
+    order.customerId = "customer123";
+    order.store = "Abrite Deliveries";
+    order.orderItems = {
+        {"Dryclean", {{"Pants", 10.0, 2}, {"Jacket", 15.0, 1}}, 35.0}
+    };
+    order.orderTotal = 35.0;
+    order.status = "in-progress";
+    order.ticketNumber = "T12345";
+    order.dropoffDate = "2023-10-01";
+    order.dropoffEmployee = "John";
+    order.pickupDate = "2023-10-05";
+    order.pickupEmployee = "Jane";
+    order.paymentDate = "2023-10-06";
+    order.paymentType = "Credit Card";
+    order.paymentEmployee = "Alice";
+    order.voidDate = QVariant();
+    order.voidEmployee = QVariant();
+    order.orderNote = "Handle with care";
+    order.rackNumber = "R123";
+    order.orderReadyDate = "2023-10-04";
+
+    QString orderId = mongoManager->addOrder(order);
+    ASSERT_FALSE(orderId.isEmpty());
+
+    Order fetchedOrder = mongoManager->getOrderById(orderId);
+    ASSERT_EQ(fetchedOrder.customerId, "customer123");
+    ASSERT_EQ(fetchedOrder.store, "Abrite Deliveries");
+    ASSERT_EQ(fetchedOrder.orderTotal, 35.0);
+    ASSERT_EQ(fetchedOrder.status, "in-progress");
+    ASSERT_EQ(fetchedOrder.ticketNumber, "T12345");
+    ASSERT_EQ(fetchedOrder.dropoffDate, "2023-10-01");
+    ASSERT_EQ(fetchedOrder.pickupDate, "2023-10-05");
+    ASSERT_EQ(fetchedOrder.paymentType, "Credit Card");
+    ASSERT_EQ(fetchedOrder.orderNote, "Handle with care");
+    ASSERT_EQ(fetchedOrder.rackNumber, "R123");
 }

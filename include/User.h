@@ -8,7 +8,9 @@ class User : public QObject {
     Q_OBJECT
 
 public:
-    static User &instance();
+    User(const QString &username = "", bool isAdmin = false);
+    User(const User &other); // Copy constructor
+    User &operator=(const User &other); // Assignment operator declaration
 
     QString getUsername() const;
     bool isAdmin() const;
@@ -17,17 +19,11 @@ public:
     void setAdmin(bool isAdmin);
 
 signals:
-    void userUpdated(); // Signal emitted when the user is updated
+    void userUpdated();
 
 private:
-    explicit User(const QString &username = "", bool isAdmin = false);
-
     QString username;
     bool admin;
-
-    // Delete copy constructor and assignment operator
-    User(const User &) = delete;
-    User &operator=(const User &) = delete;
 };
 
 #endif // USER_H

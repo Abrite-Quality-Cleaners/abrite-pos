@@ -1,6 +1,7 @@
 #include "StoreSelectionWindow.h"
 #include "Store.h"
 #include "User.h"
+#include "Session.h"
 
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -73,7 +74,8 @@ StoreSelectionWindow::StoreSelectionWindow(QWidget *parent)
 }
 
 void StoreSelectionWindow::setupUserMenu() {
-    qDebug() << "Setting up user menu for user:" << User::instance().getUsername();
+    const QString &username = Session::instance().getUser().getUsername();
+    qDebug() << "Setting up user menu for user:" << username;
 
     userMenu = new QMenu(this);
     QAction *logoutAction = new QAction("Logout", this);
@@ -88,7 +90,7 @@ void StoreSelectionWindow::setupUserMenu() {
 }
 
 void StoreSelectionWindow::updateUserMenu() {
-    QString username = User::instance().getUsername();
+    const QString &username = Session::instance().getUser().getUsername();
     QStringList nameParts = username.split(' ');
     QString displayName = nameParts.first();
     if (nameParts.size() > 1) {

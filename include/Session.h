@@ -4,6 +4,7 @@
 #include <QString>
 #include <QMap>
 #include <QVariant>
+#include "User.h"
 
 class Session : public QObject {
     Q_OBJECT
@@ -16,11 +17,12 @@ public:
 
 signals:
     void customerUpdated();
+    void userUpdated();
 
 public:
     // User-related methods
-    QString getUserName() const { return userName; }
-    void setUserName(const QString& name) { userName = name; }
+    const User& getUser() const { return user; }
+    void setUser(const User& userObj) { user = userObj; emit userUpdated(); }
 
     // Store-related methods
     QString getStoreName() const { return storeName; }
@@ -38,7 +40,7 @@ private:
     Session(const Session&) = delete;
     Session& operator=(const Session&) = delete;
 
-    QString userName;
+    User user;
     QString storeName;
     QMap<QString, QVariant> customer;
 };

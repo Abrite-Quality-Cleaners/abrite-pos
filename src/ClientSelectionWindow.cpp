@@ -14,7 +14,7 @@
 
 ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     : QMainWindow(parent),
-      addCustomerButton(new QPushButton("Add Customer", this)),
+      addCustomerButton(new QPushButton("New Customer", this)),
       editCustomerButton(new QPushButton("Edit Customer", this))
 {
     QWidget *centralWidget = new QWidget(this);
@@ -83,7 +83,7 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     setCentralWidget(centralWidget);
 
     // Set window size
-    resize(900, 900);
+    resize(1280, 1024);
 
     // Connect search button and textboxes to the search slot
     connect(searchButton, &QPushButton::clicked, this, &ClientSelectionWindow::onSearch);

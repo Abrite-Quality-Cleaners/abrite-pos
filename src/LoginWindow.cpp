@@ -7,6 +7,7 @@
 #include <QSpacerItem>
 #include <QDebug>
 #include <QSettings>
+#include "Session.h"
 
 LoginWindow::LoginWindow(QWidget *parent)
     : QWidget(parent)
@@ -34,21 +35,21 @@ LoginWindow::LoginWindow(QWidget *parent)
     layout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum), 1, 0);       // Left spacer
 
     // Add widgets to the grid
-    layout->addWidget(usernameLabel, 1, 1);
-    layout->addWidget(usernameEdit, 1, 2);
-    layout->addWidget(passwordLabel, 2, 1);
-    layout->addWidget(passwordEdit, 2, 2);
-    layout->addWidget(loginButton, 3, 2);
-    layout->addWidget(errorLabel, 4, 1, 1, 2, Qt::AlignCenter);
+    layout->addWidget(usernameLabel, 1, 2);
+    layout->addWidget(usernameEdit, 2, 2);
+    layout->addWidget(passwordLabel, 3, 2);
+    layout->addWidget(passwordEdit, 4, 2);
+    layout->addWidget(loginButton, 5, 2);
+    layout->addWidget(errorLabel, 6, 2);
 
     // Add bottom and right spacers
     layout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum), 1, 3);       // Right spacer
-    layout->addItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding), 5, 0, 1, 3); // Bottom spacer
+    layout->addItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding), 7, 0, 1, 3); // Bottom spacer
 
     setLayout(layout);
 
     // Set window size
-    resize(900, 900);
+    resize(1280, 1024);
 
     // Connect the login button to the login slot
     connect(loginButton, &QPushButton::clicked, this, &LoginWindow::onLoginClicked);
@@ -71,8 +72,8 @@ void LoginWindow::onLoginClicked()
         bool isAdmin = userInfo.second;
 
         if (password == storedPassword) {
-            User::instance().setUsername(username);
-            User::instance().setAdmin(isAdmin);
+            User user(username, isAdmin);
+            Session::instance().setUser(user);
             errorLabel->setVisible(false);  // hide previous error
             emit loginSuccess();
             return;

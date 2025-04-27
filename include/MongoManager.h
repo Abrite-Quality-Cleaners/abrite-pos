@@ -11,6 +11,7 @@
 #include <mongocxx/database.hpp>
 #include <bsoncxx/json.hpp>
 #include "Customer.h" // Include the Customer header file
+#include "Order.h" // Include the Order header file
 
 class MongoManager : public QObject {
     Q_OBJECT
@@ -30,7 +31,9 @@ public:
 
     // Order operations
     QString addOrder(const QMap<QString, QVariant> &orderData);
+    QString addOrder(const Order &order);
     QMap<QString, QVariant> getOrder(const QString &orderId);
+    Order getOrderById(const QString &orderId);
     QList<QMap<QString, QVariant>> getOrdersByCustomer(const QString &customerId);
     bool updateOrder(const QString &orderId, const QMap<QString, QVariant> &updatedData);
     bool deleteOrder(const QString &orderId);
