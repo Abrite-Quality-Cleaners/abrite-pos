@@ -4,7 +4,9 @@
 #include <QString>
 #include <QMap>
 #include <QVariant>
+#include <memory>
 #include "User.h"
+#include "MongoManager.h"
 
 class Session : public QObject {
     Q_OBJECT
@@ -32,6 +34,16 @@ public:
     QMap<QString, QVariant> getCustomer() const { return customer; }
     void setCustomer(const QMap<QString, QVariant>& customerData) { customer = customerData; emit customerUpdated(); }
 
+    // Database-related methods
+    void setDatabase(const QString& connectionString, const QString& dbName) {
+        // TODO: Make sure the old database gets closed properly if needed
+        mongoManager = std::make_unique<MongoManager>(connectionString, dbName);
+    }
+
+    MongoManager& getMongoManager() {
+        return *mongoManager;
+    }
+
 private:
     Session() = default;
     ~Session() = default;
@@ -43,6 +55,7 @@ private:
     User user;
     QString storeName;
     QMap<QString, QVariant> customer;
+    std::unique_ptr<MongoManager> mongoManager;
 };
 
 #endif // SESSION_H

@@ -10,14 +10,12 @@
 #include <mongocxx/instance.hpp>
 #include <mongocxx/database.hpp>
 #include <bsoncxx/json.hpp>
-#include "Customer.h" // Include the Customer header file
-#include "Order.h" // Include the Order header file
+#include "Customer.h"
+#include "Order.h"
 
-class MongoManager : public QObject {
-    Q_OBJECT
-
+class MongoManager {
 public:
-    explicit MongoManager(const QString &connectionString, const QString &dbName, QObject *parent = nullptr);
+    explicit MongoManager(const QString &connectionString, const QString &dbName);
     ~MongoManager();
 
     // Customer operations
@@ -28,6 +26,8 @@ public:
     bool updateCustomer(const QString &customerId, const QMap<QString, QVariant> &updatedData);
     bool updateCustomer(const Customer &customer);
     bool deleteCustomer(const QString &customerId);
+    QList<QMap<QString, QVariant>> searchCustomers(const QString &firstName, 
+            const QString &lastName, const QString &phone, const QString &ticket);
 
     // Order operations
     QString addOrder(const QMap<QString, QVariant> &orderData);
@@ -45,7 +45,8 @@ public:
     void dumpDatabase();
 
 private:
-    mongocxx::instance instance; // MongoDB driver instance
+
+    mongocxx::instance mongoInstance; // MongoDB driver instance
     mongocxx::client client;     // MongoDB client
     mongocxx::database database; // MongoDB database
 
@@ -54,6 +55,10 @@ private:
 
     bsoncxx::document::value toBson(const QMap<QString, QVariant> &data);
     QMap<QString, QVariant> fromBson(const bsoncxx::document::view &doc);
+
+    // Disable copy and assignment
+    MongoManager(const MongoManager &) = delete;
+    MongoManager &operator=(const MongoManager &) = delete;
 };
 
 #endif // MONGOMANAGER_H

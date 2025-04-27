@@ -168,3 +168,69 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
     ASSERT_EQ(fetchedOrder.orderNote, "Handle with care");
     ASSERT_EQ(fetchedOrder.rackNumber, "R123");
 }
+
+TEST_F(MongoManagerTest, SearchCustomers) {
+    QMap<QString, QVariant> customerData = {
+        {"firstName", "John"},
+        {"lastName", "Doe"},
+        {"phoneNumber", "555-1234"},
+        {"ticket", "T12345"}
+    };
+    QString customerId = mongoManager->addCustomer(customerData);
+    ASSERT_FALSE(customerId.isEmpty());
+
+    customerData = {
+        {"firstName", "John"},
+        {"lastName", "DEF"},
+        {"address", QMap<QString, QVariant>{
+            {"street", "123 Main St"},
+            {"city", "Springfield"},
+            {"state", "IL"},
+            {"zip", "62704"}
+        }},
+        {"phoneNumber", "555-2389"},
+        {"email", "john.doe@example.com"},
+        {"note", "Preferred customer"},
+        {"balance", 50.0},
+        {"storeCreditBalance", 20.0}
+    };
+    customerId = mongoManager->addCustomer(customerData);
+    ASSERT_FALSE(customerId.isEmpty());
+
+    customerData = {
+        {"firstName", "Test"},
+        {"lastName", "User"},
+        {"phoneNumber", "555-5555"},
+        {"ticket", "9823546"}
+    };
+    customerId = mongoManager->addCustomer(customerData);
+    ASSERT_FALSE(customerId.isEmpty());
+
+    QList<QMap<QString, QVariant>> results = mongoManager->searchCustomers("John", "Doe", "555-1234", "T12345");
+    ASSERT_EQ(results.size(), 1);
+    ASSERT_EQ(results[0]["firstName"].toString(), "John");
+    ASSERT_EQ(results[0]["lastName"].toString(), "Doe");
+    ASSERT_EQ(results[0]["phoneNumber"].toString(), "555-1234");
+    ASSERT_EQ(results[0]["ticket"].toString(), "T12345");
+
+    qDebug() << "Search results:";
+    for (const auto &result : results) {
+        qDebug() << "Customer:" << result["firstName"].toString() << result["lastName"].toString();
+    }
+
+    results = mongoManager->searchCustomers("John", "", "", "");
+    ASSERT_EQ(results.size(), 2);
+
+    qDebug() << "Search results:";
+    for (const auto &result : results) {
+        qDebug() << "Customer:" << result["firstName"].toString() << result["lastName"].toString();
+    }
+
+    results = mongoManager->searchCustomers("", "", "555", "");
+    ASSERT_EQ(results.size(), 3);
+
+    qDebug() << "Search results:";
+    for (const auto &result : results) {
+        qDebug() << "Customer:" << result["firstName"].toString() << result["lastName"].toString();
+    }
+}

@@ -3,6 +3,7 @@
 #include "Customer.h"
 #include "CustomerDialog.h"
 #include "Session.h"
+#include "MongoManager.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -106,99 +107,24 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     connect(editCustomerButton, &QPushButton::clicked, this, &ClientSelectionWindow::onEditCustomerClicked);
 }
 
-void ClientSelectionWindow::onSearch()
-{
-    // Get the CSV file path from the Store singleton
-    QString filePath = Store::instance().getStoreCsv();
-
-    if (filePath.isEmpty()) {
-        qDebug() << "No CSV file path set for the selected store.";
-        return;
-    }
-
-    // Get input values
+void ClientSelectionWindow::onSearch() {
     QString firstName = firstNameEdit->text();
     QString lastName = lastNameEdit->text();
     QString phone = phoneEdit->text();
     QString ticket = ticketEdit->text();
 
-    // Perform the search
-    searchCsv(filePath, firstName, lastName, phone, ticket);
-}
+    // Use the MongoManager from the Session singleton
+    QList<QMap<QString, QVariant>> customers = Session::instance().getMongoManager().searchCustomers(firstName, lastName, phone, ticket);
 
-void ClientSelectionWindow::searchCsv(const QString &filePath, const QString &firstName, const QString &lastName, const QString &phone, const QString &ticket)
-{
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Failed to open file:" << filePath;
-        return;
+    resultTable->setRowCount(0);
+    for (const QMap<QString, QVariant>& customer : customers) {
+        int row = resultTable->rowCount();
+        resultTable->insertRow(row);
+        resultTable->setItem(row, 0, new QTableWidgetItem(customer["firstName"].toString()));
+        resultTable->setItem(row, 1, new QTableWidgetItem(customer["lastName"].toString()));
+        resultTable->setItem(row, 2, new QTableWidgetItem(customer["phoneNumber"].toString()));
+        resultTable->setItem(row, 3, new QTableWidgetItem(customer["ticket"].toString()));
     }
-
-    QTextStream in(&file);
-    QStringList headers = in.readLine().split(','); // Read the header row
-
-    // Get the indices of the required columns
-    int firstNameIndex = headers.indexOf("FirstName");
-    int lastNameIndex = headers.indexOf("LastName");
-    int phoneIndex = headers.indexOf("PhoneNumber");
-    int ticketIndex = headers.indexOf("Ticket");
-    int orderDateIndex = headers.indexOf("OrderDate");
-    int balanceIndex = headers.indexOf("Balance");
-
-    if (firstNameIndex == -1 || lastNameIndex == -1 || phoneIndex == -1 || ticketIndex == -1 || orderDateIndex == -1 || balanceIndex == -1) {
-        qDebug() << "Required columns not found in the CSV file.";
-        return;
-    }
-
-    resultTable->setRowCount(0); // Clear previous results
-
-    // Calculate the maximum index
-    int maxIndex = std::max({firstNameIndex, lastNameIndex, phoneIndex, ticketIndex, orderDateIndex, balanceIndex});
-
-    // Use a QMap to store the last entry for each name/phone combination
-    QMap<QString, QStringList> uniqueEntries;
-
-    // Search through the file
-    while (!in.atEnd()) {
-        QString line = in.readLine();
-        QStringList row = line.split(',');
-
-        // Ensure the row has enough entries
-        if (row.size() <= maxIndex) {
-            qDebug() << "Skipping incomplete row:" << line;
-            continue;
-        }
-
-        // Check for matches
-        bool firstNameMatch = firstName.isEmpty() || row[firstNameIndex].contains(firstName, Qt::CaseInsensitive);
-        bool lastNameMatch = lastName.isEmpty() || row[lastNameIndex].contains(lastName, Qt::CaseInsensitive);
-        bool phoneMatch = phone.isEmpty() || row[phoneIndex].contains(phone, Qt::CaseInsensitive);
-        bool ticketMatch = ticket.isEmpty() || row[ticketIndex].contains(ticket, Qt::CaseInsensitive);
-
-        if (firstNameMatch && lastNameMatch && phoneMatch && ticketMatch) {
-            // Use the combination of first name, last name, and phone as the key
-            QString key = row[firstNameIndex] + "|" + row[lastNameIndex] + "|" + row[phoneIndex];
-            uniqueEntries[key] = row; // Store the latest row for this key
-        }
-    }
-
-    // Populate the table with the unique entries
-    int rowIndex = 0;
-    for (const QStringList &row : uniqueEntries) {
-        resultTable->insertRow(rowIndex);
-        resultTable->setItem(rowIndex, 0, new QTableWidgetItem(row[firstNameIndex]));
-        resultTable->setItem(rowIndex, 1, new QTableWidgetItem(row[lastNameIndex]));
-        resultTable->setItem(rowIndex, 2, new QTableWidgetItem(row[phoneIndex]));
-        resultTable->setItem(rowIndex, 3, new QTableWidgetItem(row[ticketIndex]));
-        resultTable->setItem(rowIndex, 4, new QTableWidgetItem(row[orderDateIndex]));
-        resultTable->setItem(rowIndex, 5, new QTableWidgetItem(row[balanceIndex]));
-        rowIndex++;
-    }
-
-    // Resize columns to fit contents
-    resultTable->resizeColumnsToContents();
-
-    file.close();
 }
 
 void ClientSelectionWindow::onRowSelected()

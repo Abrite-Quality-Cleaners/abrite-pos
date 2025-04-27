@@ -3,6 +3,8 @@
 #include "User.h"
 #include "Session.h"
 
+#include <QApplication>
+#include <QStyle>
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QSpacerItem>
@@ -44,6 +46,7 @@ StoreSelectionWindow::StoreSelectionWindow(QWidget *parent)
     abriteButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
     connect(abriteButton, &QPushButton::clicked, this, [this]() {
         Store::instance().setSelectedStore("Abrite Deliveries");
+        Session::instance().setDatabase("mongodb://localhost:27017", "AbriteDeliveries");
         emit storeSelected();
     });
 
@@ -69,8 +72,11 @@ StoreSelectionWindow::StoreSelectionWindow(QWidget *parent)
 
     mainLayout->addLayout(gridLayout, 1);
 
+    // Connect the login success signal to the updateUserMenu slot
+    connect(&Session::instance(), &Session::userUpdated, this, &StoreSelectionWindow::updateUserMenu);
+
     // Set up the user menu
-    // setupUserMenu();
+    setupUserMenu();
 }
 
 void StoreSelectionWindow::setupUserMenu() {
@@ -90,11 +96,5 @@ void StoreSelectionWindow::setupUserMenu() {
 }
 
 void StoreSelectionWindow::updateUserMenu() {
-    const QString &username = Session::instance().getUser().getUsername();
-    QStringList nameParts = username.split(' ');
-    QString displayName = nameParts.first();
-    if (nameParts.size() > 1) {
-        displayName += " " + QString(nameParts.last().at(0)) + ".";
-    }
-    userButton->setText(displayName + " ▼");
+    userButton->setText("⮌ Logout " + Session::instance().getUser().getUsername());
 }

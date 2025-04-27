@@ -19,7 +19,6 @@ signals:
 
 private slots:
     void updateUserMenu(); // Slot to update the user menu
-    //void handleStoreButtonClicked(); // Slot to handle store button clicks
 
 private:
     void setupUserMenu();

@@ -12,8 +12,8 @@
 #include "Address.h"
 #include "Order.h"
 
-MongoManager::MongoManager(const QString &connectionString, const QString &dbName, QObject *parent)
-    : QObject(parent), connectionString(connectionString), dbName(dbName), client(mongocxx::uri(connectionString.toStdString())) {
+MongoManager::MongoManager(const QString &connectionString, const QString &dbName)
+    : connectionString(connectionString), dbName(dbName), client(mongocxx::uri(connectionString.toStdString())) {
     database = client[dbName.toStdString()];
     qDebug() << "Connected to MongoDB database:" << dbName;
 }
@@ -386,4 +386,39 @@ Order MongoManager::getOrderById(const QString &orderId) {
     order.rackNumber = data["rackNumber"].toString();
     order.orderReadyDate = data["orderReadyDate"].toString();
     return order;
+}
+
+QList<QMap<QString, QVariant>> MongoManager::searchCustomers(const QString &firstName, 
+        const QString &lastName, const QString &phone, const QString &ticket) {
+
+    QList<QMap<QString, QVariant>> customers;
+
+    try {
+        auto collection = database["customers"];
+        bsoncxx::builder::stream::document filterBuilder;
+
+        // Add criteria to the filter if they are not empty
+        if (!firstName.isEmpty()) {
+            filterBuilder << "firstName" << firstName.toStdString();
+        }
+        if (!lastName.isEmpty()) {
+            filterBuilder << "lastName" << lastName.toStdString();
+        }
+        if (!phone.isEmpty()) {
+            filterBuilder << "phoneNumber" << phone.toStdString();
+        }
+        if (!ticket.isEmpty()) {
+            filterBuilder << "ticket" << ticket.toStdString();
+        }
+
+        // Execute the query
+        auto cursor = collection.find(filterBuilder.view());
+        for (const auto &doc : cursor) {
+            customers.append(fromBson(doc));
+        }
+    } catch (const mongocxx::exception &e) {
+        qDebug() << "Error searching customers:" << e.what();
+    }
+
+    return customers;
 }
