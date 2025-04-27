@@ -4,6 +4,8 @@
 #include <QWidget>
 #include <QMap>
 
+#include "User.h"
+
 class QPushButton;
 class QLineEdit;
 class QLabel;
@@ -28,7 +30,7 @@ private:
     QPushButton *loginButton;
     QLabel *errorLabel;
 
-    QMap<QString, QPair<QString, bool>> users; // Stores username -> (password, isAdmin)
+    QList<User> users;
 };
 
 #endif // LOGINWINDOW_H

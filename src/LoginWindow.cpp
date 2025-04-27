@@ -1,5 +1,4 @@
 #include "LoginWindow.h"
-#include "User.h"
 #include <QGridLayout>
 #include <QPushButton>
 #include <QLineEdit>
@@ -8,6 +7,7 @@
 #include <QDebug>
 #include <QSettings>
 #include "Session.h"
+#include <QList>
 
 LoginWindow::LoginWindow(QWidget *parent)
     : QWidget(parent)
@@ -22,13 +22,13 @@ LoginWindow::LoginWindow(QWidget *parent)
     QLabel *passwordLabel = new QLabel("Password:", this);
     passwordEdit = new QLineEdit(this);
     passwordEdit->setPlaceholderText("Enter your password");
-    passwordEdit->setEchoMode(QLineEdit::Password); // Hide password input
+    passwordEdit->setEchoMode(QLineEdit::Password);
 
     loginButton = new QPushButton("Login", this);
 
     errorLabel = new QLabel(this);
     errorLabel->setStyleSheet("color: red;");
-    errorLabel->setVisible(false); // Hidden by default
+    errorLabel->setVisible(false);
 
     // Add spacer items
     layout->addItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding), 0, 0, 1, 3); // Top spacer
@@ -51,10 +51,8 @@ LoginWindow::LoginWindow(QWidget *parent)
     // Set window size
     resize(1280, 1024);
 
-    // Connect the login button to the login slot
+    // Connect the login button and the ENTER key in the password box to the login slot
     connect(loginButton, &QPushButton::clicked, this, &LoginWindow::onLoginClicked);
-
-    // Connect pressing Enter in the password box to the login slot
     connect(passwordEdit, &QLineEdit::returnPressed, this, &LoginWindow::onLoginClicked);
 
     loadUsers();
@@ -65,16 +63,11 @@ void LoginWindow::onLoginClicked()
     QString username = usernameEdit->text();
     QString password = passwordEdit->text();
 
-    // Check if the username exists in the map
-    if (users.contains(username)) {
-        QPair<QString, bool> userInfo = users.value(username);
-        QString storedPassword = userInfo.first;
-        bool isAdmin = userInfo.second;
-
-        if (password == storedPassword) {
-            User user(username, isAdmin);
+    // Check if the username and password are valid
+    for (const User &user : users) {
+        if (user.getUsername() == username && user.getPassword() == password) {
             Session::instance().setUser(user);
-            errorLabel->setVisible(false);  // hide previous error
+            errorLabel->setVisible(false);  // Hide any previous error
             emit loginSuccess();
             return;
         }
@@ -89,19 +82,18 @@ void LoginWindow::loadUsers()
 {
     QSettings settings("../users.ini", QSettings::IniFormat);
 
-    // Clear the map in case this method is called multiple times
-    users.clear();
+    users.clear(); // Clear the list before loading
 
-    // Iterate through all groups (usernames)
     QStringList usernames = settings.childGroups();
     for (const QString &username : usernames) {
         settings.beginGroup(username);
         QString password = settings.value("password").toString();
         bool isAdmin = settings.value("isAdmin").toBool();
-        users.insert(username, qMakePair(password, isAdmin));
         settings.endGroup();
 
-        // Print the username
+        User user(username, isAdmin, password);
+        users.append(user);
+
         qDebug() << "User loaded:" << username;
     }
 }
