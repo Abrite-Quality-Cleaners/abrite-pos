@@ -63,6 +63,12 @@ void LoginWindow::onLoginClicked()
     QString username = usernameEdit->text();
     QString password = passwordEdit->text();
 
+    #warning temporarily allowing any username/password for testing
+    User user("TEST_USER", true, "TEST_PASSWORD");
+    Session::instance().setUser(user);
+    emit loginSuccess();
+    return;
+
     // Check if the username and password are valid
     for (const User &user : users) {
         if (user.getUsername() == username && user.getPassword() == password) {

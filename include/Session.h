@@ -37,7 +37,7 @@ public:
     // Database-related methods
     void setDatabase(const QString& connectionString, const QString& dbName) {
         // TODO: Make sure the old database gets closed properly if needed
-        mongoManager = std::make_unique<MongoManager>(connectionString, dbName);
+        mongoManager = new MongoManager(connectionString, dbName);
     }
 
     MongoManager& getMongoManager() {
@@ -55,7 +55,7 @@ private:
     User user;
     QString storeName;
     QMap<QString, QVariant> customer;
-    std::unique_ptr<MongoManager> mongoManager;
+    MongoManager* mongoManager;
 };
 
 #endif // SESSION_H

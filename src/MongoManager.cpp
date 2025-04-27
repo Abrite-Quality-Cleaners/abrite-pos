@@ -394,21 +394,37 @@ QList<QMap<QString, QVariant>> MongoManager::searchCustomers(const QString &firs
     QList<QMap<QString, QVariant>> customers;
 
     try {
-        auto collection = database["customers"];
+        auto collection = database["Customers"];
         bsoncxx::builder::stream::document filterBuilder;
+
+        qDebug() << "Searching customers with criteria:"
+                 << "First Name:" << firstName
+                 << "Last Name:" << lastName
+                 << "Phone:" << phone
+                 << "Ticket:" << ticket;
 
         // Add criteria to the filter if they are not empty
         if (!firstName.isEmpty()) {
-            filterBuilder << "firstName" << firstName.toStdString();
+            filterBuilder << "firstName" << bsoncxx::builder::stream::open_document
+                          << "$regex" << firstName.toStdString()
+                          << "$options" << "i" // Case-insensitive search
+                          << bsoncxx::builder::stream::close_document;
         }
         if (!lastName.isEmpty()) {
-            filterBuilder << "lastName" << lastName.toStdString();
+            filterBuilder << "lastName" << bsoncxx::builder::stream::open_document
+                          << "$regex" << lastName.toStdString()
+                          << "$options" << "i" // Case-insensitive search
+                          << bsoncxx::builder::stream::close_document;
         }
         if (!phone.isEmpty()) {
-            filterBuilder << "phoneNumber" << phone.toStdString();
+            filterBuilder << "phoneNumber" << bsoncxx::builder::stream::open_document
+                          << "$regex" << "^" + phone.toStdString() // Matches strings starting with `phone`
+                          << bsoncxx::builder::stream::close_document;
         }
         if (!ticket.isEmpty()) {
-            filterBuilder << "ticket" << ticket.toStdString();
+            filterBuilder << "ticket" << bsoncxx::builder::stream::open_document
+                          << "$regex" << ticket.toStdString()
+                          << bsoncxx::builder::stream::close_document;
         }
 
         // Execute the query
@@ -416,6 +432,9 @@ QList<QMap<QString, QVariant>> MongoManager::searchCustomers(const QString &firs
         for (const auto &doc : cursor) {
             customers.append(fromBson(doc));
         }
+
+        qDebug() << "Found" << customers.size() << "customers matching the criteria.";
+
     } catch (const mongocxx::exception &e) {
         qDebug() << "Error searching customers:" << e.what();
     }
