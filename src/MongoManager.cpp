@@ -64,43 +64,27 @@ bsoncxx::document::value MongoManager::toBson(const QMap<QString, QVariant> &dat
 // Helper: Convert BSON to QMap
 QMap<QString, QVariant> MongoManager::fromBson(const bsoncxx::document::view &doc) {
     QMap<QString, QVariant> data;
+
     for (auto element : doc) {
         QString key = QString::fromStdString(std::string(element.key()));
 
-        if (element.type() == bsoncxx::type::k_document) {
-            // Handle nested objects
-            data[key] = fromBson(element.get_document().view());
-        } else if (element.type() == bsoncxx::type::k_array) {
-            // Handle arrays
-            QVariantList list;
-            for (auto arrayElement : element.get_array().value) {
-                if (arrayElement.type() == bsoncxx::type::k_document) {
-                    list.append(fromBson(arrayElement.get_document().view()));
-                } else if (arrayElement.type() == bsoncxx::type::k_string) {
-                    list.append(QString::fromStdString(std::string(arrayElement.get_string().value)));
-                } else if (arrayElement.type() == bsoncxx::type::k_double) {
-                    list.append(arrayElement.get_double().value);
-                } else if (arrayElement.type() == bsoncxx::type::k_int32) {
-                    list.append(arrayElement.get_int32().value);
-                } else if (arrayElement.type() == bsoncxx::type::k_int64) {
-                    list.append(static_cast<qlonglong>(arrayElement.get_int64().value));
-                }
-            }
-            data[key] = list;
+        if (key == "_id" && element.type() == bsoncxx::type::k_oid) {
+            // Convert the _id field to a string
+            data[key] = QString::fromStdString(element.get_oid().value.to_string());
         } else if (element.type() == bsoncxx::type::k_string) {
-            // Handle strings
             data[key] = QString::fromStdString(std::string(element.get_string().value));
-        } else if (element.type() == bsoncxx::type::k_double) {
-            // Handle double values
-            data[key] = element.get_double().value;
         } else if (element.type() == bsoncxx::type::k_int32) {
-            // Handle int32 values
             data[key] = element.get_int32().value;
         } else if (element.type() == bsoncxx::type::k_int64) {
-            // Handle int64 values
             data[key] = static_cast<qlonglong>(element.get_int64().value);
+        } else if (element.type() == bsoncxx::type::k_double) {
+            data[key] = element.get_double().value;
+        } else if (element.type() == bsoncxx::type::k_document) {
+            data[key] = fromBson(element.get_document().view());
         }
+        // Handle other BSON types as needed
     }
+
     return data;
 }
 
@@ -127,6 +111,7 @@ QString MongoManager::addCustomer(const QMap<QString, QVariant> &customerData) {
 // Get a customer by ID
 QMap<QString, QVariant> MongoManager::getCustomer(const QString &customerId) {
     try {
+        qDebug() << "Fetching customer with ID:" << customerId;
         auto collection = database["Customers"];
         auto result = collection.find_one(bsoncxx::builder::stream::document{} << "_id" << bsoncxx::oid(customerId.toStdString()) << bsoncxx::builder::stream::finalize);
         if (result) {
@@ -301,23 +286,29 @@ QString MongoManager::addCustomer(const Customer &customer) {
 
 Customer MongoManager::getCustomerById(const QString &customerId) {
     QMap<QString, QVariant> data = getCustomer(customerId);
-    Customer customer;
-    customer.id = customerId;
-    customer.firstName = data["firstName"].toString();
-    customer.lastName = data["lastName"].toString();
-    customer.phoneNumber = data["phoneNumber"].toString();
-    customer.email = data["email"].toString();
-    QMap<QString, QVariant> addressData = data["address"].toMap();
-    customer.address = Address(
-        addressData["street"].toString(),
-        addressData["city"].toString(),
-        addressData["state"].toString(),
-        addressData["zip"].toString()
+
+    if (data.isEmpty()) {
+        qDebug() << "No customer found with ID:" << customerId;
+        return Customer("", "", "", "", "", Address("", "", "", ""), "", 0.0, 0.0); // Return an empty Customer object
+    }
+
+    // Use the Customer constructor to create the object
+    return Customer(
+        customerId,
+        data["firstName"].toString(),
+        data["lastName"].toString(),
+        data["phoneNumber"].toString(),
+        data["email"].toString(),
+        Address(
+            data["address"].toMap()["street"].toString(),
+            data["address"].toMap()["city"].toString(),
+            data["address"].toMap()["state"].toString(),
+            data["address"].toMap()["zip"].toString()
+        ),
+        data["note"].toString(),
+        data["balance"].toDouble(),
+        data["storeCreditBalance"].toDouble()
     );
-    customer.note = data["note"].toString();
-    customer.balance = data["balance"].toDouble();
-    customer.storeCreditBalance = data["storeCreditBalance"].toDouble();
-    return customer;
 }
 
 bool MongoManager::updateCustomer(const Customer &customer) {
@@ -388,10 +379,11 @@ Order MongoManager::getOrderById(const QString &orderId) {
     return order;
 }
 
-QList<QMap<QString, QVariant>> MongoManager::searchCustomers(const QString &firstName, 
-        const QString &lastName, const QString &phone, const QString &ticket) {
-
-    QList<QMap<QString, QVariant>> customers;
+QList<Customer> MongoManager::searchCustomers(const QString &firstName, 
+                                              const QString &lastName, 
+                                              const QString &phone, 
+                                              const QString &ticket) {
+    QList<Customer> customers;
 
     try {
         auto collection = database["Customers"];
@@ -430,7 +422,27 @@ QList<QMap<QString, QVariant>> MongoManager::searchCustomers(const QString &firs
         // Execute the query
         auto cursor = collection.find(filterBuilder.view());
         for (const auto &doc : cursor) {
-            customers.append(fromBson(doc));
+            QMap<QString, QVariant> data = fromBson(doc);
+
+            // Convert QMap to Customer
+            Customer customer(
+                data["_id"].toString(),
+                data["firstName"].toString(),
+                data["lastName"].toString(),
+                data["phoneNumber"].toString(),
+                data["email"].toString(),
+                Address(
+                    data["address"].toMap()["street"].toString(),
+                    data["address"].toMap()["city"].toString(),
+                    data["address"].toMap()["state"].toString(),
+                    data["address"].toMap()["zip"].toString()
+                ),
+                data["note"].toString(),
+                data["balance"].toDouble(),
+                data["storeCreditBalance"].toDouble()
+            );
+
+            customers.append(customer);
         }
 
         qDebug() << "Found" << customers.size() << "customers matching the criteria.";

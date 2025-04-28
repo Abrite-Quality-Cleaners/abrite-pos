@@ -8,6 +8,7 @@
 #include <QDebug>
 #include "User.h"
 #include "MongoManager.h"
+#include "Customer.h"
 
 class Session : public QObject {
     Q_OBJECT
@@ -28,12 +29,12 @@ public:
     void setUser(const User& userObj) { user = userObj; emit userUpdated(); }
 
     // Store-related methods
-    QString getStoreName() const { return storeName; }
-    void setStoreName(const QString& name) { storeName = name; }
+    QString getStoreName() const              { return storeName; }
+    void    setStoreName(const QString& name) { storeName = name; }
 
     // Customer-related methods
-    QMap<QString, QVariant> getCustomer() const { return customer; }
-    void setCustomer(const QMap<QString, QVariant>& customerData) { customer = customerData; emit customerUpdated(); }
+    Customer getCustomer() const            { return customer; }
+    void     setCustomer(Customer customer) { this->customer = customer; emit customerUpdated(); }
 
     // Database-related methods
     MongoManager& getMongoManager(const QString &connectionString = "mongodb://localhost:27017", 
@@ -55,7 +56,7 @@ private:
 
     User user;
     QString storeName;
-    QMap<QString, QVariant> customer;
+    Customer customer;
     std::unique_ptr<MongoManager> mongoManager;
 };
 

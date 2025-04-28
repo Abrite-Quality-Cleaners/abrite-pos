@@ -24,8 +24,10 @@ public:
 signals:
     void dropoffDone(); // Signal emitted when the Cancel button is clicked
 
-private slots:
+public slots:
     void updateCustomerInfo(); // Slot to update customer info
+
+private slots:
     void updateDateTime(); // Slot to update the date and time
 
 private:

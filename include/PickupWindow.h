@@ -17,9 +17,11 @@ public:
 signals:
     void pickupDone(); // Signal emitted when the Cancel button is clicked
 
+public slots:
+    void updateCustomerInfo();
+
 private slots:
     void handleCheckout();
-    void updateCustomerInfo();
 
 private:
     QLineEdit *ticketIdDisplay;

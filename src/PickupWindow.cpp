@@ -22,8 +22,9 @@ PickupWindow::PickupWindow(QWidget *parent)
     ticketIdDisplay->setReadOnly(true);
     ticketIdDisplay->setFixedWidth(100);
     customerNameEdit = new QLineEdit(this);
-    customerNameEdit->setFixedWidth(200);
-    customerNameEdit->setPlaceholderText("Enter customer name");
+    customerNameEdit->setFixedWidth(500);
+    customerNameEdit->setReadOnly(true);
+    customerNameEdit->setPlaceholderText("No customer selected");
 
     topBarLayout->addWidget(new QLabel("Ticket ID:"));
     topBarLayout->addWidget(ticketIdDisplay);
@@ -126,9 +127,6 @@ PickupWindow::PickupWindow(QWidget *parent)
     contentLayout->addLayout(masterLayout, 1); // 50% width
 
     mainLayout->addLayout(contentLayout); // Add content layout below top bar
-
-    // Initialize the customer info
-    updateCustomerInfo();
 }
 
 void PickupWindow::handleCheckout() {
@@ -138,11 +136,16 @@ void PickupWindow::handleCheckout() {
 }
 
 void PickupWindow::updateCustomerInfo() {
-    QString customerName = Session::instance().getCustomer()["firstName"].toString() + " " + Session::instance().getCustomer()["lastName"].toString();
-    QString customerPhone = Session::instance().getCustomer()["phoneNumber"].toString();
+    const Customer &customer = Session::instance().getCustomer();
+    QString customerName = customer.firstName + " " + customer.lastName;
+    QString customerId = customer.id;
 
-    if (!customerName.isEmpty()) {
-        customerNameEdit->setText(customerName + " (" + customerPhone + ")");
+    qDebug() << "Updating customer info for Pickup:"
+             << "Name:" << customerName
+             << "ID:" << customerId;
+
+    if (!customerName.trimmed().isEmpty() && !customerId.isEmpty()) {
+        customerNameEdit->setText(customerName + " (" + customerId + ")");
     } else {
         customerNameEdit->setText("No customer selected");
     }

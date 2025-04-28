@@ -21,19 +21,14 @@ DropoffWindow::DropoffWindow(QWidget *parent)
 
     // Top bar
     QHBoxLayout *topRow = new QHBoxLayout();
-    ticketIdDisplay = new QLineEdit(this);
-    ticketIdDisplay->setReadOnly(true);
-    ticketIdDisplay->setFixedWidth(100);
     customerNameEdit = new QLineEdit(this);
-    customerNameEdit->setFixedWidth(200);
-    customerNameEdit->setPlaceholderText("Enter customer name");
+    customerNameEdit->setFixedWidth(500);
+    customerNameEdit->setReadOnly(true);
+    customerNameEdit->setPlaceholderText("No customer selected");
     dateTimeDisplay = new QLineEdit(this);
     dateTimeDisplay->setReadOnly(true);
     dateTimeDisplay->setFixedWidth(200);
 
-    topRow->addWidget(new QLabel("Ticket ID:"));
-    topRow->addWidget(ticketIdDisplay);
-    topRow->addSpacing(15);
     topRow->addWidget(new QLabel("Customer:"));
     topRow->addWidget(customerNameEdit);
     topRow->addSpacing(15);
@@ -80,7 +75,6 @@ DropoffWindow::DropoffWindow(QWidget *parent)
         qDebug() << "Check-out button clicked";
         qDebug() << "Order Notes:" << notesEdit->toPlainText(); // Log the notes
         handleCheckout(); // Call the checkout handler
-        // Add logic for check-out functionality here
     });
 
     // Create "Pay" button
@@ -97,11 +91,8 @@ DropoffWindow::DropoffWindow(QWidget *parent)
             if (paymentMethod == "Check") {
                 qDebug() << "Check Number:" << checkNumber;
             }
-
-            // Handle the selected payment method here
         }
     });
-
 
     // Create "Cancel" button
     QPushButton *cancelButton = new QPushButton("Cancel", this);
@@ -121,15 +112,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     resize(1280, 1024);
     setWindowTitle("Dropoff Interface");
 
-    loadTicketId("store.ini");
-    updateTicketIdDisplay();
     loadPricesFromIni("../prices.ini");
-
-    // Connect the Customer singleton's signal to update the customer info
-    //connect(&Session::instance(), &Session::customerUpdated, this, &DropoffWindow::updateCustomerInfo);
-
-    // Initialize the customer info
-    updateCustomerInfo();
 
     // Initialize the date and time display
     dateTimeTimer = new QTimer(this);
@@ -448,11 +431,12 @@ void DropoffWindow::updateTotal()
 }
 
 void DropoffWindow::updateCustomerInfo() {
-    QString customerName = Session::instance().getCustomer()["firstName"].toString() + " " + Session::instance().getCustomer()["lastName"].toString();
-    QString customerPhone = Session::instance().getCustomer()["phoneNumber"].toString();
+    const Customer &customer = Session::instance().getCustomer();
+    QString customerName = customer.firstName + " " + customer.lastName;
+    QString customerId = customer.id;
 
-    if (!customerName.isEmpty()) {
-        customerNameEdit->setText(customerName + " (" + customerPhone + ")");
+    if (!customerName.trimmed().isEmpty() && !customerId.isEmpty()) {
+        customerNameEdit->setText(customerName + " (" + customerId + ")");
     } else {
         customerNameEdit->setText("No customer selected");
     }

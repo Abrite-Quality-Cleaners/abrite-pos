@@ -26,8 +26,7 @@ public:
     bool updateCustomer(const QString &customerId, const QMap<QString, QVariant> &updatedData);
     bool updateCustomer(const Customer &customer);
     bool deleteCustomer(const QString &customerId);
-    QList<QMap<QString, QVariant>> searchCustomers(const QString &firstName, 
-            const QString &lastName, const QString &phone, const QString &ticket);
+    QList<Customer> searchCustomers(const QString &firstName, const QString &lastName, const QString &phone, const QString &ticket);
 
     // Order operations
     QString addOrder(const QMap<QString, QVariant> &orderData);

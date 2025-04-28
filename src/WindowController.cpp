@@ -22,6 +22,10 @@ WindowController::WindowController(QObject *parent)
     connect(clientSelWindow, &ClientSelectionWindow::pickUpRequested, this, &WindowController::onPickUpRequested); // Connect Pick-up signal
     connect(dropoffWindow, &DropoffWindow::dropoffDone, this, &WindowController::onDropoffDone); // Connect dropoffDone signal
     connect(pickupWindow, &PickupWindow::pickupDone, this, &WindowController::onPickupDone); // Connect pickupDone signal
+
+    // Connect the dropOffRequested signal from ClientSelectionWindow to the updateCustomerInfo slot in DropoffWindow
+    connect(clientSelWindow, &ClientSelectionWindow::dropOffRequested, dropoffWindow, &DropoffWindow::updateCustomerInfo);
+    connect(clientSelWindow, &ClientSelectionWindow::pickUpRequested, pickupWindow, &PickupWindow::updateCustomerInfo);
 }
  
 void WindowController::start()

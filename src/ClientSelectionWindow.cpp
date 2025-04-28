@@ -36,8 +36,8 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
 
     // Create result table
     resultTable = new QTableWidget(this);
-    resultTable->setColumnCount(5); // Number of fields to display
-    resultTable->setHorizontalHeaderLabels({"First Name", "Last Name", "Phone", "Balance", "Address"});
+    resultTable->setColumnCount(6); // Number of fields to display
+    resultTable->setHorizontalHeaderLabels({"First Name", "Last Name", "Phone", "Balance", "Address", "ID"});
     resultTable->setEditTriggers(QAbstractItemView::NoEditTriggers); // Make the table read-only
     resultTable->setSelectionBehavior(QAbstractItemView::SelectRows); // Allow row selection
     resultTable->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -113,30 +113,29 @@ void ClientSelectionWindow::onSearch() {
     QString phone = phoneEdit->text();
     QString ticket = ticketEdit->text();
 
-    // Use the MongoManager from the Session singleton
-    QList<QMap<QString, QVariant>> customers = Session::instance().getMongoManager().searchCustomers(firstName, lastName, phone, ticket);
+    customers = Session::instance().getMongoManager().searchCustomers(firstName, lastName, phone, ticket);
 
     resultTable->setRowCount(0);
-    for (const QMap<QString, QVariant>& customer : customers) {
+    for (const Customer &customer : customers) {
         int row = resultTable->rowCount();
         resultTable->insertRow(row);
-        resultTable->setItem(row, 0, new QTableWidgetItem(customer["firstName"].toString()));
-        resultTable->setItem(row, 1, new QTableWidgetItem(customer["lastName"].toString()));
-        resultTable->setItem(row, 2, new QTableWidgetItem(customer["phoneNumber"].toString()));
-        resultTable->setItem(row, 3, new QTableWidgetItem(customer["balance"].toString()));
 
-        QMap<QString, QVariant> address = customer["address"].toMap();
-        QString fullAddress = address["street"].toString() + ", " +
-                              address["city"].toString() + ", " +
-                              address["state"].toString() + " " +
-                              address["zip"].toString();
+        resultTable->setItem(row, 0, new QTableWidgetItem(customer.firstName));
+        resultTable->setItem(row, 1, new QTableWidgetItem(customer.lastName));
+        resultTable->setItem(row, 2, new QTableWidgetItem(customer.phoneNumber));
+        resultTable->setItem(row, 3, new QTableWidgetItem(QString::number(customer.balance)));
 
+        QString fullAddress = customer.address.street + ", " +
+                              customer.address.city + ", " +
+                              customer.address.state + " " +
+                              customer.address.zip;
         resultTable->setItem(row, 4, new QTableWidgetItem(fullAddress));
+
+        resultTable->setItem(row, 5, new QTableWidgetItem(customer.id));
     }
 
-    // Resize columns and rows to fit the content
     resultTable->resizeColumnsToContents();
-    //resultTable->resizeRowsToContents();
+    resultTable->resizeRowsToContents();
 }
 
 void ClientSelectionWindow::onRowSelected()
@@ -153,24 +152,27 @@ void ClientSelectionWindow::onDropOffClicked()
     // Ensure a row is selected
     int selectedRow = resultTable->currentRow();
     if (selectedRow >= 0) {
-        // Retrieve customer information from the selected row
-        QString firstName = resultTable->item(selectedRow, 0)->text();
-        QString lastName = resultTable->item(selectedRow, 1)->text();
-        QString phone = resultTable->item(selectedRow, 2)->text();
+        // Retrieve the customer ID from the selected row
+        QString customerId = resultTable->item(selectedRow, 5)->text(); // Assuming ID is in column 5
 
-        // Update the Session singleton
-        Session::instance().setCustomer({
-            {"firstName", firstName},
-            {"lastName", lastName},
-            {"phoneNumber", phone}
+        // Search for the customer in the customers list
+        auto it = std::find_if(customers.begin(), customers.end(), [&customerId](const Customer &customer) {
+            return customer.id == customerId;
         });
 
-        qDebug() << "Customer updated for Drop-off:"
-                 << "Name:" << Session::instance().getCustomer()["firstName"].toString() + " " + Session::instance().getCustomer()["lastName"].toString()
-                 << "Phone:" << Session::instance().getCustomer()["phoneNumber"].toString();
+        if (it != customers.end()) {
+            // Set the found customer in the Session singleton
+            Session::instance().setCustomer(*it);
 
-        // Emit the signal to transition to the DropoffWindow
-        emit dropOffRequested();
+            qDebug() << "Customer updated for Drop-off:"
+                     << "Name:" << it->firstName + " " + it->lastName
+                     << "Phone:" << it->phoneNumber;
+
+            // Emit the signal to transition to the DropoffWindow
+            emit dropOffRequested();
+        } else {
+            qDebug() << "Customer with ID" << customerId << "not found in the customers list.";
+        }
     }
 }
 
@@ -180,24 +182,27 @@ void ClientSelectionWindow::onPickUpClicked()
     // Ensure a row is selected
     int selectedRow = resultTable->currentRow();
     if (selectedRow >= 0) {
-        // Retrieve customer information from the selected row
-        QString firstName = resultTable->item(selectedRow, 0)->text();
-        QString lastName = resultTable->item(selectedRow, 1)->text();
-        QString phone = resultTable->item(selectedRow, 2)->text();
+        // Retrieve the customer ID from the selected row
+        QString customerId = resultTable->item(selectedRow, 5)->text(); // Assuming ID is in column 5
 
-        // Update the Session singleton
-        Session::instance().setCustomer({
-            {"firstName", firstName},
-            {"lastName", lastName},
-            {"phoneNumber", phone}
+        // Search for the customer in the customers list
+        auto it = std::find_if(customers.begin(), customers.end(), [&customerId](const Customer &customer) {
+            return customer.id == customerId;
         });
 
-        qDebug() << "Customer updated for Pick-up:"
-                 << "Name:" << Session::instance().getCustomer()["firstName"].toString() + " " + Session::instance().getCustomer()["lastName"].toString()
-                 << "Phone:" << Session::instance().getCustomer()["phoneNumber"].toString();
+        if (it != customers.end()) {
+            // Set the found customer in the Session singleton
+            Session::instance().setCustomer(*it);
 
-        // Emit the signal to transition to the PickUpWindow (if applicable)
-        emit pickUpRequested();
+            qDebug() << "Customer updated for Pick-up:"
+                     << "Name:" << it->firstName + " " + it->lastName
+                     << "Phone:" << it->phoneNumber;
+
+            // Emit the signal to transition to the PickUpWindow
+            emit pickUpRequested();
+        } else {
+            qDebug() << "Customer with ID" << customerId << "not found in the customers list.";
+        }
     }
 }
 
@@ -219,19 +224,41 @@ void ClientSelectionWindow::onAddCustomerClicked() {
 }
 
 void ClientSelectionWindow::onEditCustomerClicked() {
-    // Example: Fetch existing customer data (replace with actual logic)
-    QMap<QString, QVariant> existingCustomerData = {
-        {"firstName", "John"},
-        {"lastName", "Doe"},
-        {"phoneNumber", "555-1234"},
-        {"email", "john.doe@example.com"}
-    };
+    // Ensure a row is selected
+    int selectedRow = resultTable->currentRow();
+    if (selectedRow < 0) {
+        qDebug() << "No customer selected for editing.";
+        return;
+    }
 
+    // Retrieve the customer ID or unique identifier from the selected row
+    QString customerId = resultTable->item(selectedRow, 5)->text(); // Assuming ID is stored in UserRole
+    if (customerId.isEmpty()) {
+        qDebug() << "Customer ID not found for the selected row.";
+        return;
+    }
+
+    // Fetch the existing customer data from the database
+    QMap<QString, QVariant> existingCustomerData = Session::instance().getMongoManager().getCustomer(customerId);
+
+    if (existingCustomerData.isEmpty()) {
+        qDebug() << "Failed to fetch customer data for ID:" << customerId;
+        return;
+    }
+
+    // Open the dialog with the existing customer data
     CustomerDialog dialog(this, existingCustomerData);
     if (dialog.exec() == QDialog::Accepted) {
-        // Handle editing the customer
+        // Get the updated customer data from the dialog
         QMap<QString, QVariant> updatedCustomerData = dialog.getCustomerData();
-        // Update customer in the database (use MongoManager or similar)
-        qDebug() << "Updating customer:" << updatedCustomerData;
+
+        // Update the customer in the database
+        bool success = Session::instance().getMongoManager().updateCustomer(customerId, updatedCustomerData);
+
+        if (success) {
+            qDebug() << "Customer updated successfully for ID:" << customerId;
+        } else {
+            qDebug() << "Failed to update customer for ID:" << customerId;
+        }
     }
 }

@@ -5,6 +5,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTableWidget>
+#include "Customer.h"
 
 class ClientSelectionWindow : public QMainWindow
 {
@@ -38,6 +39,8 @@ private:
     QPushButton *pickUpButton;  // Pick-up button
     QPushButton *addCustomerButton; // Add Customer button
     QPushButton *editCustomerButton; // Edit Customer button
+
+    QList<Customer> customers;
 };
 
 #endif // CLIENTSELECTIONWINDOW_H
