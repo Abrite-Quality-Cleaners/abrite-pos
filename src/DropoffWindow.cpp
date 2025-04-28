@@ -277,9 +277,18 @@ QWidget *DropoffWindow::createCategoryTab(const QString &categoryName, const QLi
 void DropoffWindow::addItemToReceipt(const QString &tabName, const QString &itemName, double price)
 {
     // Check if the header for this tab has already been added
-    if (!addedHeaders.contains(tabName)) {
-        // Add a header row for the tab
-        int headerRow = receiptTable->rowCount();
+    int headerRow = -1;
+    for (int row = 0; row < receiptTable->rowCount(); ++row) {
+        QTableWidgetItem *itemCell = receiptTable->item(row, 0);
+        if (itemCell && !itemCell->flags().testFlag(Qt::ItemIsEditable) && itemCell->text() == tabName) {
+            headerRow = row;
+            break;
+        }
+    }
+
+    if (headerRow == -1) {
+        // Add a header row for the tab if it doesn't exist
+        headerRow = receiptTable->rowCount();
         receiptTable->insertRow(headerRow);
 
         QTableWidgetItem *headerItem = new QTableWidgetItem(tabName);
@@ -288,16 +297,15 @@ void DropoffWindow::addItemToReceipt(const QString &tabName, const QString &item
         headerItem->setBackground(Qt::lightGray); // Highlight the header row
         receiptTable->setSpan(headerRow, 0, 1, receiptTable->columnCount()); // Span across all columns
         receiptTable->setItem(headerRow, 0, headerItem);
-
-        // Mark this tab as added
-        addedHeaders.insert(tabName);
     }
 
-    // Check if the item already exists in the receipt table
-    for (int row = 0; row < receiptTable->rowCount(); ++row) {
+    // Check if the item already exists in the receipt table under the correct header
+    for (int row = headerRow + 1; row < receiptTable->rowCount(); ++row) {
         QTableWidgetItem *itemCell = receiptTable->item(row, 0);
-        qDebug() << "Checking row" << row << "for item" << itemName << " itemCell=" << itemCell;
-        if (itemCell && itemCell->text() == itemName) {
+        if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
+            break; // Reached the next header or end of table
+        }
+        if (itemCell->text() == itemName) {
             // Increment the quantity if the item already exists
             QSpinBox *quantitySpinBox = qobject_cast<QSpinBox *>(receiptTable->cellWidget(row, 2));
             if (quantitySpinBox) {
@@ -308,10 +316,17 @@ void DropoffWindow::addItemToReceipt(const QString &tabName, const QString &item
         }
     }
 
-    // Add the item row under the tab header if it doesn't already exist
-    int itemRow = receiptTable->rowCount();
-    receiptTable->insertRow(itemRow);
+    // Add the item row under the correct header
+    int itemRow = headerRow + 1;
+    while (itemRow < receiptTable->rowCount()) {
+        QTableWidgetItem *itemCell = receiptTable->item(itemRow, 0);
+        if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
+            break; // Reached the next header or end of table
+        }
+        ++itemRow;
+    }
 
+    receiptTable->insertRow(itemRow);
     receiptTable->setItem(itemRow, 0, new QTableWidgetItem(itemName));
     receiptTable->setItem(itemRow, 1, new QTableWidgetItem(QString::number(price, 'f', 2)));
 
@@ -320,6 +335,9 @@ void DropoffWindow::addItemToReceipt(const QString &tabName, const QString &item
     quantitySpinBox->setRange(1, 999);
     quantitySpinBox->setValue(1);
     receiptTable->setCellWidget(itemRow, 2, quantitySpinBox);
+
+    // Connect the spinbox's valueChanged signal to updateTotal
+    connect(quantitySpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &DropoffWindow::updateTotal);
 
     // Add a remove button
     QPushButton *removeButton = new QPushButton("Remove", this);
