@@ -205,7 +205,9 @@ QList<QMap<QString, QVariant>> MongoManager::getOrdersByCustomer(const QString &
     QList<QMap<QString, QVariant>> orders;
     try {
         auto collection = database["Orders"];
-        auto cursor = collection.find(bsoncxx::builder::stream::document{} << "customerId" << bsoncxx::oid(customerId.toStdString()) << bsoncxx::builder::stream::finalize);
+        auto cursor = collection.find(bsoncxx::builder::stream::document{} 
+                                      << "customerId" << bsoncxx::oid(customerId.toStdString()) 
+                                      << bsoncxx::builder::stream::finalize);
         for (auto doc : cursor) {
             orders.append(fromBson(doc));
         }

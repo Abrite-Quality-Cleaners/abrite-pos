@@ -2,11 +2,10 @@
 #define PICKUPWINDOW_H
 
 #include <QMainWindow>
-#include <QLineEdit>
 #include <QTableWidget>
-#include <QLabel>
-#include <QPushButton>
+#include <QLineEdit>
 #include <QTextEdit>
+#include <QLabel>
 
 class PickupWindow : public QMainWindow {
     Q_OBJECT
@@ -24,10 +23,14 @@ private slots:
     void handleCheckout();
 
 private:
+    void populateOrdersTable();
+
+    QTableWidget *receiptTable;
     QLineEdit *ticketIdDisplay;
     QLineEdit *customerNameEdit;
-    QTableWidget *receiptTable;
+    QTableWidget *customerOrdersTable;
     QLabel *totalLabel;
+    QTextEdit *customerNotesEdit;
     QTextEdit *notesEdit;
 };
 

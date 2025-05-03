@@ -49,6 +49,7 @@ private:
     QTabWidget *tabWidget;
     QLabel *totalLabel;
     QLabel *paymentMethodLabel; // Label for payment method
+    QLineEdit *paymentMethodEdit;
     QMap<QString, int> itemRowMap;
     QTextEdit *notesEdit; // Textbox for order notes
     QTimer *dateTimeTimer; // Timer to update the date and time

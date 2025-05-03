@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDateTime>
+#include <QDateTimeEdit>
 #include <QDebug>
 #include <QStyle>
 #include <QTimer>
@@ -21,6 +22,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
 
     // Tab widget on the left
     tabWidget = new QTabWidget(this);
+
     mainLayout->addWidget(tabWidget, 2); // Stretch factor of 2 for 2/3 width
 
     // Right-side layout for customer info, date/time, receipt, and buttons
@@ -28,26 +30,43 @@ DropoffWindow::DropoffWindow(QWidget *parent)
 
     // Customer Info Section
     QHBoxLayout *customerRow = new QHBoxLayout();
+    QLabel *customerLabel = new QLabel("Customer:", this);
+    customerLabel->setStyleSheet("font-weight: bold;"); // Bold the label
     customerNameEdit = new QLineEdit(this);
     customerNameEdit->setFixedWidth(400);
     customerNameEdit->setReadOnly(true);
     customerNameEdit->setPlaceholderText("No customer selected");
 
-    customerRow->addWidget(new QLabel("Customer:"));
+    customerRow->addWidget(customerLabel);
     customerRow->addWidget(customerNameEdit);
     customerRow->addStretch();
     rightLayout->addLayout(customerRow);
 
     // Dropoff Date/Time Section
     QHBoxLayout *dateTimeRow = new QHBoxLayout();
+    QLabel *dropoffDateLabel = new QLabel("Dropoff Date/Time:", this);
+    dropoffDateLabel->setStyleSheet("font-weight: bold;"); // Bold the label
     dateTimeDisplay = new QLineEdit(this);
     dateTimeDisplay->setReadOnly(true);
     dateTimeDisplay->setFixedWidth(300);
 
-    dateTimeRow->addWidget(new QLabel("Dropoff Date/Time:"));
+    dateTimeRow->addWidget(dropoffDateLabel);
     dateTimeRow->addWidget(dateTimeDisplay);
     dateTimeRow->addStretch();
     rightLayout->addLayout(dateTimeRow);
+
+    // Pickup Date Section
+    QHBoxLayout *pickupDateRow = new QHBoxLayout();
+    QLabel *pickupDateLabel = new QLabel("Pickup Date:", this);
+    pickupDateLabel->setStyleSheet("font-weight: bold;"); // Bold the label
+    QDateEdit *pickupDatePicker = new QDateEdit(QDate::currentDate().addDays(3), this);
+    pickupDatePicker->setDisplayFormat("yyyy-MM-dd");
+    pickupDatePicker->setCalendarPopup(true);
+
+    pickupDateRow->addWidget(pickupDateLabel);
+    pickupDateRow->addWidget(pickupDatePicker);
+    pickupDateRow->addStretch();
+    rightLayout->addLayout(pickupDateRow);
 
     // Receipt Table
     receiptTable = new QTableWidget(this);
@@ -65,10 +84,18 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     totalLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
     rightLayout->addWidget(totalLabel);
 
-    // Payment Method Label
-    paymentMethodLabel = new QLabel("Payment Method: On-pickup", this);
-    paymentMethodLabel->setStyleSheet("font-size: 14px;");
-    rightLayout->addWidget(paymentMethodLabel);
+    // Payment Method Section
+    QHBoxLayout *paymentMethodRow = new QHBoxLayout();
+    QLabel *paymentMethodLabel = new QLabel("Payment Method:", this);
+    paymentMethodLabel->setStyleSheet("font-weight: bold;"); // Bold the label
+    paymentMethodEdit = new QLineEdit("On-pickup", this);
+    paymentMethodEdit->setReadOnly(true);
+    paymentMethodEdit->setFixedWidth(200);
+
+    paymentMethodRow->addWidget(paymentMethodLabel);
+    paymentMethodRow->addWidget(paymentMethodEdit);
+    paymentMethodRow->addStretch();
+    rightLayout->addLayout(paymentMethodRow);
 
     // Notes Textbox
     notesEdit = new QTextEdit(this);
@@ -102,8 +129,8 @@ DropoffWindow::DropoffWindow(QWidget *parent)
                 qDebug() << "Check Number:" << checkNumber;
             }
 
-            // Update the payment method label
-            paymentMethodLabel->setText("Payment Method: " + paymentMethod);
+            // Update the payment method text box
+            paymentMethodEdit->setText(paymentMethod);
         }
     });
 
