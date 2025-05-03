@@ -23,6 +23,7 @@ private slots:
     void handleCheckout();
 
 private:
+    void onOrderSelected();
     void populateOrdersTable();
 
     QTableWidget *receiptTable;

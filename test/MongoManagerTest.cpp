@@ -140,7 +140,7 @@ TEST_F(MongoManagerTest, AddAndRetrieveCustomerObject) {
 
 TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
     Order order;
-    order.customerId = "customer123";
+    order.customerId = "64a7b2f5e4b0c123456789ab";
     order.store = "Abrite Deliveries";
     order.orderItems = {
         {"Dryclean", {{"Pants", 10.0, 2}, {"Jacket", 15.0, 1}}, 35.0}
@@ -156,7 +156,7 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
     ASSERT_FALSE(orderId.isEmpty());
 
     Order fetchedOrder = mongoManager->getOrderById(orderId);
-    ASSERT_EQ(fetchedOrder.customerId, "customer123");
+    ASSERT_EQ(fetchedOrder.customerId, "64a7b2f5e4b0c123456789ab");
     ASSERT_EQ(fetchedOrder.store, "Abrite Deliveries");
     ASSERT_EQ(fetchedOrder.orderTotal, 35.0);
     ASSERT_EQ(fetchedOrder.orderItems.size(), 1);
@@ -231,4 +231,46 @@ TEST_F(MongoManagerTest, SearchCustomers) {
     for (const auto &result : results) {
         qDebug() << "Customer:" << result.firstName << result.lastName;
     }
+}
+
+TEST_F(MongoManagerTest, AddOrderWithCorrectCustomerId) {
+    QMap<QString, QVariant> customerData = {
+        {"firstName", "John"},
+        {"lastName", "Doe"}
+    };
+    QString customerId = mongoManager->addCustomer(customerData);
+    qDebug() << "Adding order for customer ID:" << customerId;
+    ASSERT_FALSE(customerId.isEmpty());
+
+    QMap<QString, QVariant> orderData = {
+        {"customerId", customerId},
+        {"store", "Store A"},
+        {"orderItems", QVariantList{}},
+        {"orderTotal", 0.0},
+        {"status", "in-progress"}
+    };
+
+    QString orderId = mongoManager->addOrder(orderData);
+    qDebug() << "Order added with ID:" << orderId;
+    ASSERT_FALSE(orderId.isEmpty());
+
+    QMap<QString, QVariant> fetchedOrder = mongoManager->getOrder(orderId);
+    qDebug() << "Customer ID of fetched order:" << fetchedOrder["customerId"].toString();
+    ASSERT_EQ(fetchedOrder["customerId"].toString(), customerId);
+}
+
+TEST_F(MongoManagerTest, DeserializeCustomerId) {
+    QMap<QString, QVariant> orderData = {
+        {"customerId", "64a7b2f5e4b0c123456789ab"},
+        {"store", "Store A"},
+        {"orderItems", QVariantList{}},
+        {"orderTotal", 0.0},
+        {"status", "in-progress"}
+    };
+
+    QString orderId = mongoManager->addOrder(orderData);
+    ASSERT_FALSE(orderId.isEmpty());
+
+    QMap<QString, QVariant> fetchedOrder = mongoManager->getOrder(orderId);
+    ASSERT_EQ(fetchedOrder["customerId"].toString(), "64a7b2f5e4b0c123456789ab");
 }

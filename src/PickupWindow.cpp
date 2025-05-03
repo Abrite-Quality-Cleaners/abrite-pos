@@ -53,6 +53,10 @@ PickupWindow::PickupWindow(QWidget *parent)
     customerOrdersTable->setHorizontalHeaderLabels({"Dropoff Date", "Ready Date", "Payment Type", "Order Total"});
     customerOrdersTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     customerOrdersTable->verticalHeader()->setVisible(false);
+    customerOrdersTable->setSelectionBehavior(QAbstractItemView::SelectRows); // Enable full row selection
+    customerOrdersTable->setSelectionMode(QAbstractItemView::SingleSelection);
+
+    connect(customerOrdersTable, &QTableWidget::itemSelectionChanged, this, &PickupWindow::onOrderSelected);
 
     leftLayout->addWidget(ordersLabel);
     leftLayout->addWidget(customerOrdersTable);
@@ -186,5 +190,80 @@ void PickupWindow::populateOrdersTable() {
         customerOrdersTable->setItem(row, 1, readyDateItem);
         customerOrdersTable->setItem(row, 2, paymentTypeItem);
         customerOrdersTable->setItem(row, 3, orderTotalItem);
+    }
+}
+
+void PickupWindow::onOrderSelected() {
+    // Clear the receipt table
+    receiptTable->setRowCount(0);
+
+    // Get the selected row
+    int selectedRow = customerOrdersTable->currentRow();
+    if (selectedRow < 0) {
+        qDebug() << "No order selected.";
+        return;
+    }
+
+    // Get the order data
+    QString dropoffDate = customerOrdersTable->item(selectedRow, 0)->text();
+    QList<QMap<QString, QVariant>> orders = Session::instance().getMongoManager().getOrdersByCustomer(Session::instance().getCustomer().id);
+
+    // Find the selected order
+    QMap<QString, QVariant> selectedOrder;
+    for (const auto &order : orders) {
+        if (order["dropoffDate"].toString() == dropoffDate) {
+            selectedOrder = order;
+            break;
+        }
+    }
+
+    if (selectedOrder.isEmpty()) {
+        qDebug() << "Selected order not found.";
+        return;
+    }
+
+    // Check if the orderItems field is empty
+    QVariantList orderItems = selectedOrder["orderItems"].toList();
+    if (orderItems.isEmpty()) {
+        // Add a header row for legacy orders
+        int row = receiptTable->rowCount();
+        receiptTable->insertRow(row);
+        QTableWidgetItem *legacyHeader = new QTableWidgetItem("Legacy order, items unknown...");
+        legacyHeader->setFlags(Qt::NoItemFlags); // Make it non-editable
+        legacyHeader->setTextAlignment(Qt::AlignCenter);
+        receiptTable->setSpan(row, 0, 1, receiptTable->columnCount()); // Span across all columns
+        receiptTable->setItem(row, 0, legacyHeader);
+        return;
+    }
+
+    // Populate the receipt table with items and categories
+    for (const QVariant &categoryVariant : orderItems) {
+        QMap<QString, QVariant> category = categoryVariant.toMap();
+
+        // Add a header row for the category
+        int headerRow = receiptTable->rowCount();
+        receiptTable->insertRow(headerRow);
+        QTableWidgetItem *headerItem = new QTableWidgetItem(category["category"].toString());
+        headerItem->setFlags(Qt::NoItemFlags); // Make it non-editable
+        headerItem->setTextAlignment(Qt::AlignCenter);
+        receiptTable->setSpan(headerRow, 0, 1, receiptTable->columnCount()); // Span across all columns
+        receiptTable->setItem(headerRow, 0, headerItem);
+
+        // Add the items in the category
+        QVariantList items = category["items"].toList();
+        for (const QVariant &itemVariant : items) {
+            QMap<QString, QVariant> item = itemVariant.toMap();
+
+            int itemRow = receiptTable->rowCount();
+            receiptTable->insertRow(itemRow);
+
+            QTableWidgetItem *itemName = new QTableWidgetItem(item["name"].toString());
+            QTableWidgetItem *itemPrice = new QTableWidgetItem(QString::number(item["price"].toDouble(), 'f', 2));
+            QTableWidgetItem *itemQuantity = new QTableWidgetItem(QString::number(item["quantity"].toInt()));
+
+            receiptTable->setItem(itemRow, 0, itemName);
+            receiptTable->setItem(itemRow, 1, itemPrice);
+            receiptTable->setItem(itemRow, 2, itemQuantity);
+        }
     }
 }

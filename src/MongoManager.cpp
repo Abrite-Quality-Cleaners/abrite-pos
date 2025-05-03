@@ -29,7 +29,10 @@ bsoncxx::document::value MongoManager::toBson(const QMap<QString, QVariant> &dat
         const QString &key = it.key();
         const QVariant &value = it.value();
 
-        if (value.metaType().id() == QMetaType::QVariantMap) {
+        if (key == "customerId") {
+            // Serialize customerId as an ObjectId
+            doc << key.toStdString() << bsoncxx::oid(value.toString().toStdString());
+        } else if (value.metaType().id() == QMetaType::QVariantMap) {
             // Handle nested objects
             doc << key.toStdString() << toBson(value.toMap()).view();
         } else if (value.metaType().id() == QMetaType::QVariantList) {
@@ -69,6 +72,10 @@ QMap<QString, QVariant> MongoManager::fromBson(const bsoncxx::document::view &do
         QString key = QString::fromStdString(std::string(element.key()));
 
         if (key == "_id" && element.type() == bsoncxx::type::k_oid) {
+            // Deserialize _id as a QString
+            data[key] = QString::fromStdString(element.get_oid().value.to_string());
+        } else if (key == "customerId" && element.type() == bsoncxx::type::k_oid) {
+            // Deserialize customerId as a QString
             data[key] = QString::fromStdString(element.get_oid().value.to_string());
         } else if (element.type() == bsoncxx::type::k_string) {
             data[key] = QString::fromStdString(std::string(element.get_string().value));
