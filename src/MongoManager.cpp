@@ -69,7 +69,6 @@ QMap<QString, QVariant> MongoManager::fromBson(const bsoncxx::document::view &do
         QString key = QString::fromStdString(std::string(element.key()));
 
         if (key == "_id" && element.type() == bsoncxx::type::k_oid) {
-            // Convert the _id field to a string
             data[key] = QString::fromStdString(element.get_oid().value.to_string());
         } else if (element.type() == bsoncxx::type::k_string) {
             data[key] = QString::fromStdString(std::string(element.get_string().value));
@@ -79,6 +78,14 @@ QMap<QString, QVariant> MongoManager::fromBson(const bsoncxx::document::view &do
             data[key] = static_cast<qlonglong>(element.get_int64().value);
         } else if (element.type() == bsoncxx::type::k_double) {
             data[key] = element.get_double().value;
+        } else if (element.type() == bsoncxx::type::k_array) {
+            QVariantList list;
+            for (auto arrayElement : element.get_array().value) {
+                if (arrayElement.type() == bsoncxx::type::k_document) {
+                    list.append(fromBson(arrayElement.get_document().value));
+                }
+            }
+            data[key] = list;
         } else if (element.type() == bsoncxx::type::k_document) {
             data[key] = fromBson(element.get_document().view());
         }
@@ -168,7 +175,7 @@ QString MongoManager::addOrder(const QMap<QString, QVariant> &orderData) {
     }
 
     try {
-        auto collection = database["orders"];
+        auto collection = database["Orders"];
         auto result = collection.insert_one(toBson(orderData));
         if (result.has_value()) {
             return QString::fromStdString(result->inserted_id().get_oid().value.to_string());
@@ -182,7 +189,7 @@ QString MongoManager::addOrder(const QMap<QString, QVariant> &orderData) {
 // Get an order by ID
 QMap<QString, QVariant> MongoManager::getOrder(const QString &orderId) {
     try {
-        auto collection = database["orders"];
+        auto collection = database["Orders"];
         auto result = collection.find_one(bsoncxx::builder::stream::document{} << "_id" << bsoncxx::oid(orderId.toStdString()) << bsoncxx::builder::stream::finalize);
         if (result) {
             return fromBson(result->view());
@@ -197,7 +204,7 @@ QMap<QString, QVariant> MongoManager::getOrder(const QString &orderId) {
 QList<QMap<QString, QVariant>> MongoManager::getOrdersByCustomer(const QString &customerId) {
     QList<QMap<QString, QVariant>> orders;
     try {
-        auto collection = database["orders"];
+        auto collection = database["Orders"];
         auto cursor = collection.find(bsoncxx::builder::stream::document{} << "customerId" << bsoncxx::oid(customerId.toStdString()) << bsoncxx::builder::stream::finalize);
         for (auto doc : cursor) {
             orders.append(fromBson(doc));
@@ -211,7 +218,7 @@ QList<QMap<QString, QVariant>> MongoManager::getOrdersByCustomer(const QString &
 // Update an order
 bool MongoManager::updateOrder(const QString &orderId, const QMap<QString, QVariant> &updatedData) {
     try {
-        auto collection = database["orders"];
+        auto collection = database["Orders"];
         auto result = collection.update_one(
             bsoncxx::builder::stream::document{} << "_id" << bsoncxx::oid(orderId.toStdString()) << bsoncxx::builder::stream::finalize,
             bsoncxx::builder::stream::document{} << "$set" << toBson(updatedData).view() << bsoncxx::builder::stream::finalize);
@@ -225,7 +232,7 @@ bool MongoManager::updateOrder(const QString &orderId, const QMap<QString, QVari
 // Delete an order
 bool MongoManager::deleteOrder(const QString &orderId) {
     try {
-        auto collection = database["orders"];
+        auto collection = database["Orders"];
         auto result = collection.delete_one(bsoncxx::builder::stream::document{} << "_id" << bsoncxx::oid(orderId.toStdString()) << bsoncxx::builder::stream::finalize);
         return result && result->deleted_count() > 0;
     } catch (const mongocxx::exception &e) {
@@ -331,10 +338,27 @@ bool MongoManager::updateCustomer(const Customer &customer) {
 }
 
 QString MongoManager::addOrder(const Order &order) {
+    QVariantList orderItemsList;
+    for (const OrderCategory &category : order.orderItems) {
+        QVariantList itemsList;
+        for (const OrderItem &item : category.items) {
+            itemsList.append(QVariantMap{
+                {"name", item.name},
+                {"price", item.price},
+                {"quantity", item.quantity}
+            });
+        }
+        orderItemsList.append(QVariantMap{
+            {"category", category.category},
+            {"items", itemsList},
+            {"categoryTotal", category.categoryTotal}
+        });
+    }
+
     QMap<QString, QVariant> orderData = {
         {"customerId", order.customerId},
         {"store", order.store},
-        {"orderItems", QVariant::fromValue(order.orderItems)},
+        {"orderItems", orderItemsList},
         {"orderTotal", order.orderTotal},
         {"status", order.status},
         {"ticketNumber", order.ticketNumber},
@@ -351,16 +375,22 @@ QString MongoManager::addOrder(const Order &order) {
         {"rackNumber", order.rackNumber},
         {"orderReadyDate", order.orderReadyDate}
     };
+
     return addOrder(orderData);
 }
 
 Order MongoManager::getOrderById(const QString &orderId) {
     QMap<QString, QVariant> data = getOrder(orderId);
+
+    if (data.isEmpty()) {
+        qDebug() << "No order found with ID:" << orderId;
+        return Order();
+    }
+
     Order order;
     order.id = orderId;
     order.customerId = data["customerId"].toString();
     order.store = data["store"].toString();
-    order.orderItems = data["orderItems"].value<QList<OrderCategory>>();
     order.orderTotal = data["orderTotal"].toDouble();
     order.status = data["status"].toString();
     order.ticketNumber = data["ticketNumber"].toString();
@@ -376,6 +406,30 @@ Order MongoManager::getOrderById(const QString &orderId) {
     order.orderNote = data["orderNote"].toString();
     order.rackNumber = data["rackNumber"].toString();
     order.orderReadyDate = data["orderReadyDate"].toString();
+
+    // Deserialize orderItems
+    QVariantList orderItemsList = data["orderItems"].toList();
+    qDebug() << "Deserializing order items for order ID:" << orderId;
+    qDebug() << "Number of categories in order items:" << orderItemsList.size();
+    for (const QVariant &categoryVariant : orderItemsList) {
+        QMap<QString, QVariant> categoryMap = categoryVariant.toMap();
+        OrderCategory category;
+        category.category = categoryMap["category"].toString();
+        category.categoryTotal = categoryMap["categoryTotal"].toDouble();
+
+        QVariantList itemsList = categoryMap["items"].toList();
+        for (const QVariant &itemVariant : itemsList) {
+            QMap<QString, QVariant> itemMap = itemVariant.toMap();
+            OrderItem item;
+            item.name = itemMap["name"].toString();
+            item.price = itemMap["price"].toDouble();
+            item.quantity = itemMap["quantity"].toInt();
+            category.items.append(item);
+        }
+
+        order.orderItems.append(category);
+    }
+
     return order;
 }
 

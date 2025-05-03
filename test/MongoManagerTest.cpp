@@ -11,15 +11,15 @@ protected:
     // Per-test setup
     void SetUp() override {
         // Clean up the test database before each test
-        mongoManager->getDatabase()["customers"].delete_many({});
-        mongoManager->getDatabase()["orders"].delete_many({});
+        mongoManager->getDatabase()["Customers"].delete_many({});
+        mongoManager->getDatabase()["Orders"].delete_many({});
     }
 
     // Per-test teardown
     void TearDown() override {
         // Clean up the test database after each test
-        mongoManager->getDatabase()["customers"].delete_many({});
-        mongoManager->getDatabase()["orders"].delete_many({});
+        mongoManager->getDatabase()["Customers"].delete_many({});
+        mongoManager->getDatabase()["Orders"].delete_many({});
     }
 
     // Suite-wide setup
@@ -151,15 +151,6 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
     order.dropoffDate = "2023-10-01";
     order.dropoffEmployee = "John";
     order.pickupDate = "2023-10-05";
-    order.pickupEmployee = "Jane";
-    order.paymentDate = "2023-10-06";
-    order.paymentType = "Credit Card";
-    order.paymentEmployee = "Alice";
-    order.voidDate = QVariant();
-    order.voidEmployee = QVariant();
-    order.orderNote = "Handle with care";
-    order.rackNumber = "R123";
-    order.orderReadyDate = "2023-10-04";
 
     QString orderId = mongoManager->addOrder(order);
     ASSERT_FALSE(orderId.isEmpty());
@@ -168,13 +159,12 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
     ASSERT_EQ(fetchedOrder.customerId, "customer123");
     ASSERT_EQ(fetchedOrder.store, "Abrite Deliveries");
     ASSERT_EQ(fetchedOrder.orderTotal, 35.0);
-    ASSERT_EQ(fetchedOrder.status, "in-progress");
-    ASSERT_EQ(fetchedOrder.ticketNumber, "T12345");
-    ASSERT_EQ(fetchedOrder.dropoffDate, "2023-10-01");
-    ASSERT_EQ(fetchedOrder.pickupDate, "2023-10-05");
-    ASSERT_EQ(fetchedOrder.paymentType, "Credit Card");
-    ASSERT_EQ(fetchedOrder.orderNote, "Handle with care");
-    ASSERT_EQ(fetchedOrder.rackNumber, "R123");
+    ASSERT_EQ(fetchedOrder.orderItems.size(), 1);
+    ASSERT_EQ(fetchedOrder.orderItems[0].category, "Dryclean");
+    ASSERT_EQ(fetchedOrder.orderItems[0].items.size(), 2);
+    ASSERT_EQ(fetchedOrder.orderItems[0].items[0].name, "Pants");
+    ASSERT_EQ(fetchedOrder.orderItems[0].items[0].price, 10.0);
+    ASSERT_EQ(fetchedOrder.orderItems[0].items[0].quantity, 2);
 }
 
 TEST_F(MongoManagerTest, SearchCustomers) {

@@ -12,6 +12,7 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QSet>
+#include "Order.h"
 
 class DropoffWindow : public QMainWindow
 {
@@ -34,20 +35,20 @@ private:
     void initPrinter();
     void closePrinter();
     void loadTicketId(const QString &storeIniPath);
-    void updateTicketIdDisplay();
-    void handleCheckout();
+    void handleCheckout(); // Refactored method
     void loadPricesFromIni(const QString &filename);
     QWidget *createCategoryTab(const QString &categoryName, const QList<QPair<QString, double>> &items);
     void addItemToReceipt(const QString &tabName, const QString &itemName, double price);
     void removeItem(int row);
     void updateTotal();
+    QString createReceipt(); // New method to generate the receipt
 
-    QLineEdit *ticketIdDisplay;
     QLineEdit *customerNameEdit;
     QLineEdit *dateTimeDisplay;
     QTableWidget *receiptTable;
     QTabWidget *tabWidget;
     QLabel *totalLabel;
+    QLabel *paymentMethodLabel; // Label for payment method
     QMap<QString, int> itemRowMap;
     QTextEdit *notesEdit; // Textbox for order notes
     QTimer *dateTimeTimer; // Timer to update the date and time
@@ -55,6 +56,8 @@ private:
 
     int ticketId;
     QString ticketFile = "ticket_id.txt";
+
+    Order currentOrder; // Order object to keep track of the current order
 };
 
 #endif // DROPOFFWINDOW_H

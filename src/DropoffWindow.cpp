@@ -17,32 +17,39 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     QWidget *central = new QWidget(this);
-    QVBoxLayout *masterLayout = new QVBoxLayout(central);
+    QHBoxLayout *mainLayout = new QHBoxLayout(central);
 
-    // Top bar
-    QHBoxLayout *topRow = new QHBoxLayout();
+    // Tab widget on the left
+    tabWidget = new QTabWidget(this);
+    mainLayout->addWidget(tabWidget, 2); // Stretch factor of 2 for 2/3 width
+
+    // Right-side layout for customer info, date/time, receipt, and buttons
+    QVBoxLayout *rightLayout = new QVBoxLayout();
+
+    // Customer Info Section
+    QHBoxLayout *customerRow = new QHBoxLayout();
     customerNameEdit = new QLineEdit(this);
-    customerNameEdit->setFixedWidth(500);
+    customerNameEdit->setFixedWidth(400);
     customerNameEdit->setReadOnly(true);
     customerNameEdit->setPlaceholderText("No customer selected");
+
+    customerRow->addWidget(new QLabel("Customer:"));
+    customerRow->addWidget(customerNameEdit);
+    customerRow->addStretch();
+    rightLayout->addLayout(customerRow);
+
+    // Dropoff Date/Time Section
+    QHBoxLayout *dateTimeRow = new QHBoxLayout();
     dateTimeDisplay = new QLineEdit(this);
     dateTimeDisplay->setReadOnly(true);
-    dateTimeDisplay->setFixedWidth(200);
+    dateTimeDisplay->setFixedWidth(300);
 
-    topRow->addWidget(new QLabel("Customer:"));
-    topRow->addWidget(customerNameEdit);
-    topRow->addSpacing(15);
-    topRow->addWidget(new QLabel("Date:"));
-    topRow->addWidget(dateTimeDisplay);
-    topRow->addStretch();
-    masterLayout->addLayout(topRow);
+    dateTimeRow->addWidget(new QLabel("Dropoff Date/Time:"));
+    dateTimeRow->addWidget(dateTimeDisplay);
+    dateTimeRow->addStretch();
+    rightLayout->addLayout(dateTimeRow);
 
-    // Main layout
-    QHBoxLayout *mainLayout = new QHBoxLayout();
-    tabWidget = new QTabWidget(this);
-    mainLayout->addWidget(tabWidget, 2);
-
-    QVBoxLayout *rightLayout = new QVBoxLayout();
+    // Receipt Table
     receiptTable = new QTableWidget(this);
     receiptTable->setColumnCount(4);
     receiptTable->setHorizontalHeaderLabels({"Item", "Price", "Quantity", ""});
@@ -50,34 +57,37 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     receiptTable->setSelectionMode(QAbstractItemView::NoSelection);
     receiptTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     receiptTable->verticalHeader()->setVisible(false);
-    receiptTable->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    receiptTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     receiptTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     rightLayout->addWidget(receiptTable);
 
+    // Total Label
     totalLabel = new QLabel("Total: $0.00", this);
-    totalLabel->setStyleSheet("font-size: 18px; font-weight: bold;"); // Bold and increase font size
+    totalLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
     rightLayout->addWidget(totalLabel);
 
-    // Add notes textbox
+    // Payment Method Label
+    paymentMethodLabel = new QLabel("Payment Method: On-pickup", this);
+    paymentMethodLabel->setStyleSheet("font-size: 14px;");
+    rightLayout->addWidget(paymentMethodLabel);
+
+    // Notes Textbox
     notesEdit = new QTextEdit(this);
     notesEdit->setPlaceholderText("Enter notes about the order...");
-    notesEdit->setFixedHeight(100); // Set a fixed height for the notes textbox
+    notesEdit->setFixedHeight(100);
     rightLayout->addWidget(notesEdit);
 
+    // Buttons Row
     QHBoxLayout *btnRow = new QHBoxLayout();
 
-    // Create "Check-out" button
+    // Check-out Button
     QPushButton *checkoutButton = new QPushButton("Check-out", this);
     checkoutButton->setMinimumWidth(100);
     btnRow->addWidget(checkoutButton);
     connect(checkoutButton, &QPushButton::clicked, this, [=]() {
-        qDebug() << "Check-out button clicked";
-        qDebug() << "Order Notes:" << notesEdit->toPlainText(); // Log the notes
-        handleCheckout(); // Call the checkout handler
+        handleCheckout();
     });
 
-    // Create "Pay" button
+    // Pay Button
     QPushButton *payButton = new QPushButton("Pay", this);
     payButton->setMinimumWidth(100);
     btnRow->addWidget(payButton);
@@ -91,22 +101,24 @@ DropoffWindow::DropoffWindow(QWidget *parent)
             if (paymentMethod == "Check") {
                 qDebug() << "Check Number:" << checkNumber;
             }
+
+            // Update the payment method label
+            paymentMethodLabel->setText("Payment Method: " + paymentMethod);
         }
     });
 
-    // Create "Cancel" button
+    // Cancel Button
     QPushButton *cancelButton = new QPushButton("Cancel", this);
     cancelButton->setMinimumWidth(100);
     btnRow->addWidget(cancelButton);
     connect(cancelButton, &QPushButton::clicked, this, [=]() {
-        qDebug() << "Cancel button clicked";
-        emit dropoffDone(); // Emit the dropoffDone signal
+        emit dropoffDone();
     });
 
     rightLayout->addLayout(btnRow);
 
-    mainLayout->addLayout(rightLayout, 1);
-    masterLayout->addLayout(mainLayout);
+    // Add the right layout to the main layout
+    mainLayout->addLayout(rightLayout, 1); // Stretch factor of 1 for 1/3 width
 
     setCentralWidget(central);
     resize(1280, 1024);
@@ -138,21 +150,59 @@ void DropoffWindow::loadTicketId(const QString &storeIniPath)
     }
 }
 
-void DropoffWindow::updateTicketIdDisplay()
-{
-    ticketIdDisplay->setText(QString::number(ticketId));
-}
-
 void DropoffWindow::handleCheckout()
 {
-    QFile f(ticketFile);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QTextStream out(&f);
-        out << ticketId + 1; // Save the next ticket ID
+    // Update the current order with the latest data
+    const Customer &customer = Session::instance().getCustomer();
+    currentOrder.customerId = customer.id;
+    currentOrder.dropoffDate = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+    currentOrder.orderNote = notesEdit->toPlainText();
+    currentOrder.orderTotal = 0.0;
+    currentOrder.orderItems.clear();
+
+    // Populate the order items from the receipt table
+    for (int row = 0; row < receiptTable->rowCount(); ++row) {
+        QTableWidgetItem *itemCell = receiptTable->item(row, 0);
+
+        // Skip header rows (non-editable rows)
+        if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
+            continue;
+        }
+
+        QString itemName = itemCell->text();
+        double price = receiptTable->item(row, 1)->text().toDouble();
+        int qty = qobject_cast<QSpinBox *>(receiptTable->cellWidget(row, 2))->value();
+        double subtotal = qty * price;
+
+        // Add the item to the order
+        OrderItem orderItem = {itemName, price, qty};
+        currentOrder.orderItems.append({{"General", {orderItem}, subtotal}});
+        currentOrder.orderTotal += subtotal;
     }
 
-    QString client = customerNameEdit->text();
-    if (client.isEmpty()) client = "Unknown";
+    // Generate the receipt
+    QString receipt = createReceipt();
+
+    // Save the order to the database
+    QString orderId = Session::instance().getMongoManager().addOrder(currentOrder);
+    if (!orderId.isEmpty()) {
+        qDebug() << "Order added successfully with ID:" << orderId;
+    } else {
+        qDebug() << "Failed to add order.";
+    }
+
+    // Print the receipt
+    qDebug() << "Receipt generated:\n" << receipt;
+
+    // Update the ticket ID for the next transaction
+    ticketId++;
+}
+
+QString DropoffWindow::createReceipt()
+{
+    const Customer &customer = Session::instance().getCustomer();
+    QString client = customer.firstName + " " + customer.lastName;
+    if (client.trimmed().isEmpty()) client = "Unknown";
 
     QString receipt = QString(
         "             Sparkle Cleaners\n"
@@ -207,13 +257,7 @@ void DropoffWindow::handleCheckout()
         "NOTE: %2\n"
     ).arg(total, 0, 'f', 2).arg(notesEdit->toPlainText());
 
-    receipt += "\n\n\n\n\n\n\n"; // Add some blank lines so the cut doesn't chop off part of the receipt
-
-    ticketId = currentTicketId; // Update the ticket ID for the next transaction
-    updateTicketIdDisplay();
-
-    qDebug() << "Receipt generated:\n";
-    printf("%s\n", receipt.toStdString().c_str());
+    return receipt;
 }
 
 void DropoffWindow::loadPricesFromIni(const QString &filename)
