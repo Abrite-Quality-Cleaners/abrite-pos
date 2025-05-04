@@ -73,14 +73,14 @@ TEST_F(MongoManagerTest, AddAndGetOrder) {
     QMap<QString, QVariant> orderData = {
         {"customerId", customerId},
         {"store", "Store A"},
-        {"orderItems", QVariantList{
+        {"subOrders", QVariantList{
             QMap<QString, QVariant>{
-                {"category", "Dryclean"},
+                {"type", "Dryclean"},
                 {"items", QVariantList{
                     QMap<QString, QVariant>{{"name", "Pants"}, {"price", 10.0}, {"quantity", 2}},
                     QMap<QString, QVariant>{{"name", "Jacket"}, {"price", 15.0}, {"quantity", 1}}
                 }},
-                {"categoryTotal", 35.0}
+                {"total", 35.0}
             }
         }},
         {"orderTotal", 35.0},
@@ -140,8 +140,8 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
     Order order;
     order.customerId = "64a7b2f5e4b0c123456789ab";
     order.store = "Abrite Deliveries";
-    order.orderItems = {
-        {"Dryclean", {{"Pants", 10.0, 2}, {"Jacket", 15.0, 1}}, 35.0}
+    order.subOrders = {
+        {0, "Dryclean", {{"Pants", 10.0, 2}, {"Jacket", 15.0, 1}}, 35.0}
     };
     order.orderTotal = 35.0;
     order.status = "in-progress";
@@ -157,12 +157,12 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
     ASSERT_EQ(fetchedOrder.customerId, "64a7b2f5e4b0c123456789ab");
     ASSERT_EQ(fetchedOrder.store, "Abrite Deliveries");
     ASSERT_EQ(fetchedOrder.orderTotal, 35.0);
-    ASSERT_EQ(fetchedOrder.orderItems.size(), 1);
-    ASSERT_EQ(fetchedOrder.orderItems[0].category, "Dryclean");
-    ASSERT_EQ(fetchedOrder.orderItems[0].items.size(), 2);
-    ASSERT_EQ(fetchedOrder.orderItems[0].items[0].name, "Pants");
-    ASSERT_EQ(fetchedOrder.orderItems[0].items[0].price, 10.0);
-    ASSERT_EQ(fetchedOrder.orderItems[0].items[0].quantity, 2);
+    ASSERT_EQ(fetchedOrder.subOrders.size(), 1);
+    ASSERT_EQ(fetchedOrder.subOrders[0].type, "Dryclean");
+    ASSERT_EQ(fetchedOrder.subOrders[0].items.size(), 2);
+    ASSERT_EQ(fetchedOrder.subOrders[0].items[0].name, "Pants");
+    ASSERT_EQ(fetchedOrder.subOrders[0].items[0].price, 10.0);
+    ASSERT_EQ(fetchedOrder.subOrders[0].items[0].quantity, 2);
 }
 
 TEST_F(MongoManagerTest, SearchCustomers) {
@@ -243,7 +243,7 @@ TEST_F(MongoManagerTest, AddOrderWithCorrectCustomerId) {
     QMap<QString, QVariant> orderData = {
         {"customerId", customerId},
         {"store", "Store A"},
-        {"orderItems", QVariantList{}},
+        {"subOrders", QVariantList{}},
         {"orderTotal", 0.0},
         {"status", "in-progress"}
     };
@@ -261,7 +261,7 @@ TEST_F(MongoManagerTest, DeserializeCustomerId) {
     QMap<QString, QVariant> orderData = {
         {"customerId", "64a7b2f5e4b0c123456789ab"},
         {"store", "Store A"},
-        {"orderItems", QVariantList{}},
+        {"subOrders", QVariantList{}},
         {"orderTotal", 0.0},
         {"status", "in-progress"}
     };
@@ -317,4 +317,24 @@ TEST_F(MongoManagerTest, SetAndGetThenIncrementNextId) {
     // Verify that the next call retrieves an incremented ID
     nextId = mongoManager->getThenIncrementNextId();
     ASSERT_EQ(nextId, initialId + 1);
+}
+
+TEST_F(MongoManagerTest, AddAndRetrieveOrderWithSubOrderId) {
+    Order order;
+    order.customerId = "64a7b2f5e4b0c123456789ab";
+    order.store = "Abrite Deliveries";
+    order.subOrders = {
+        {1001, "Dryclean", {{"Pants", 10.0, 2}, {"Jacket", 15.0, 1}}, 35.0},
+        {1002, "Laundry", {{"Towel", 5.0, 3}}, 15.0}
+    };
+    order.orderTotal = 50.0;
+    order.status = "in-progress";
+
+    QString orderId = mongoManager->addOrder(order);
+    ASSERT_FALSE(orderId.isEmpty());
+
+    Order fetchedOrder = mongoManager->getOrderById(orderId);
+    ASSERT_EQ(fetchedOrder.subOrders.size(), 2);
+    ASSERT_EQ(fetchedOrder.subOrders[0].id, 1001);
+    ASSERT_EQ(fetchedOrder.subOrders[1].id, 1002);
 }

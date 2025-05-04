@@ -166,17 +166,17 @@ bool MongoManager::deleteCustomer(const QString &customerId) {
 // Add a new order
 QString MongoManager::addOrder(const QMap<QString, QVariant> &orderData) {
     // Validate required fields
-    if (!orderData.contains("customerId") || !orderData.contains("orderItems")) {
+    if (!orderData.contains("customerId") || !orderData.contains("subOrders")) {
         qDebug() << "Error: Missing required fields for order.";
         return QString();
     }
 
-    // Validate orderItems structure
-    QVariantList orderItems = orderData["orderItems"].toList();
-    for (const QVariant &item : orderItems) {
-        QMap<QString, QVariant> category = item.toMap();
-        if (!category.contains("category") || !category.contains("items")) {
-            qDebug() << "Error: Invalid orderItems structure.";
+    // Validate subOrders structure
+    QVariantList subOrders = orderData["subOrders"].toList();
+    for (const QVariant &item : subOrders) {
+        QMap<QString, QVariant> type = item.toMap();
+        if (!type.contains("type") || !type.contains("items")) {
+            qDebug() << "Error: Invalid subOrders structure.";
             return QString();
         }
     }
@@ -347,27 +347,28 @@ bool MongoManager::updateCustomer(const Customer &customer) {
 }
 
 QString MongoManager::addOrder(const Order &order) {
-    QVariantList orderItemsList;
-    for (const OrderCategory &category : order.orderItems) {
+    QVariantList subOrdersList;
+    for (const SubOrder &type : order.subOrders) {
         QVariantList itemsList;
-        for (const OrderItem &item : category.items) {
+        for (const Item &item : type.items) {
             itemsList.append(QVariantMap{
                 {"name", item.name},
                 {"price", item.price},
                 {"quantity", item.quantity}
             });
         }
-        orderItemsList.append(QVariantMap{
-            {"category", category.category},
+        subOrdersList.append(QVariantMap{
+            {"id", static_cast<quint64>(type.id)}, // Serialize type ID
+            {"type", type.type},
             {"items", itemsList},
-            {"categoryTotal", category.categoryTotal}
+            {"total", type.total}
         });
     }
 
     QMap<QString, QVariant> orderData = {
         {"customerId", order.customerId},
         {"store", order.store},
-        {"orderItems", orderItemsList},
+        {"subOrders", subOrdersList},
         {"orderTotal", order.orderTotal},
         {"status", order.status},
         {"ticketNumber", order.ticketNumber},
@@ -416,27 +417,25 @@ Order MongoManager::getOrderById(const QString &orderId) {
     order.rackNumber = data["rackNumber"].toString();
     order.orderReadyDate = data["orderReadyDate"].toString();
 
-    // Deserialize orderItems
-    QVariantList orderItemsList = data["orderItems"].toList();
-    qDebug() << "Deserializing order items for order ID:" << orderId;
-    qDebug() << "Number of categories in order items:" << orderItemsList.size();
-    for (const QVariant &categoryVariant : orderItemsList) {
-        QMap<QString, QVariant> categoryMap = categoryVariant.toMap();
-        OrderCategory category;
-        category.category = categoryMap["category"].toString();
-        category.categoryTotal = categoryMap["categoryTotal"].toDouble();
+    QVariantList subOrdersList = data["subOrders"].toList();
+    for (const QVariant &subOrderVariant : subOrdersList) {
+        QMap<QString, QVariant> subOrderMap = subOrderVariant.toMap();
+        SubOrder type;
+        type.id = subOrderMap["id"].toULongLong(); // Deserialize type ID
+        type.type = subOrderMap["type"].toString();
+        type.total = subOrderMap["total"].toDouble();
 
-        QVariantList itemsList = categoryMap["items"].toList();
+        QVariantList itemsList = subOrderMap["items"].toList();
         for (const QVariant &itemVariant : itemsList) {
             QMap<QString, QVariant> itemMap = itemVariant.toMap();
-            OrderItem item;
+            Item item;
             item.name = itemMap["name"].toString();
             item.price = itemMap["price"].toDouble();
             item.quantity = itemMap["quantity"].toInt();
-            category.items.append(item);
+            type.items.append(item);
         }
 
-        order.orderItems.append(category);
+        order.subOrders.append(type);
     }
 
     return order;

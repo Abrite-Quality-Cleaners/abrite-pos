@@ -6,23 +6,24 @@
 #include <QList>
 #include <QString>
 
-struct OrderItem {
+struct Item {
     QString name;
     double price;
     int quantity;
 };
 
-struct OrderCategory {
-    QString category;
-    QList<OrderItem> items;
-    double categoryTotal;
+struct SubOrder {
+    uint64_t id;
+    QString type;
+    QList<Item> items;
+    double total;
 };
 
 struct Order {
     QString id;  // MongoDB _id as a string (ObjectId -> hex string)
     QString customerId;  // MongoDB _id as a string
     QString store;  // "Abrite Deliveries"
-    QList<OrderCategory> orderItems;  // Empty list for now
+    QList<SubOrder> subOrders;  // Empty list for now
     double orderTotal;
     QString status;  // "legacy"
     QString ticketNumber;

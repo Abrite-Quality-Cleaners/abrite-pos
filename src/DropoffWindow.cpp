@@ -165,18 +165,6 @@ DropoffWindow::~DropoffWindow()
     //closePrinter();
 }
 
-void DropoffWindow::loadTicketId(const QString &storeIniPath)
-{
-    QFile f(ticketFile);
-    if (f.exists() && f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&f);
-        ticketId = in.readLine().toInt();
-    } else {
-        QSettings s(storeIniPath, QSettings::IniFormat);
-        ticketId = s.value("TicketIdRange/min", 1000).toInt();
-    }
-}
-
 void DropoffWindow::handleCheckout()
 {
     // Update the current order with the latest data
@@ -185,32 +173,35 @@ void DropoffWindow::handleCheckout()
     currentOrder.dropoffDate = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
     currentOrder.orderNote = notesEdit->toPlainText();
     currentOrder.orderTotal = 0.0;
-    currentOrder.orderItems.clear();
-
-    // Populate the order items from the receipt table
+    currentOrder.subOrders.clear();
+    
+    // Build an order
+    SubOrder subOrder = {0, "", {}, 0.0};
     for (int row = 0; row < receiptTable->rowCount(); ++row) {
         QTableWidgetItem *itemCell = receiptTable->item(row, 0);
 
-        // Skip header rows (non-editable rows)
         if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
+            if (!subOrder.type.isEmpty()) {
+                currentOrder.subOrders.append(subOrder);
+                currentOrder.orderTotal += subOrder.total;
+            }
+            
+            subOrder = {Session::instance().getMongoManager().getThenIncrementNextId(), 
+                    itemCell->text(), {}, 0.0};
             continue;
         }
-
+            
         QString itemName = itemCell->text();
         double price = receiptTable->item(row, 1)->text().toDouble();
         int qty = qobject_cast<QSpinBox *>(receiptTable->cellWidget(row, 2))->value();
-        double subtotal = qty * price;
-
+        
         // Add the item to the order
-        OrderItem orderItem = {itemName, price, qty};
-        currentOrder.orderItems.append({{"General", {orderItem}, subtotal}});
-        currentOrder.orderTotal += subtotal;
+        subOrder.total += price * qty;
+        subOrder.items.append({itemName, price, qty});      
     }
+    currentOrder.orderTotal += subOrder.total;
+    currentOrder.subOrders.append(subOrder);
 
-    // Generate the receipt
-    QString receipt = createReceipt();
-
-    // Save the order to the database
     QString orderId = Session::instance().getMongoManager().addOrder(currentOrder);
     if (!orderId.isEmpty()) {
         qDebug() << "Order added successfully with ID:" << orderId;
@@ -218,73 +209,82 @@ void DropoffWindow::handleCheckout()
         qDebug() << "Failed to add order.";
     }
 
-    // Print the receipt
-    qDebug() << "Receipt generated:\n" << receipt;
-
-    // Update the ticket ID for the next transaction
-    ticketId++;
+    printReceipts();
 }
 
-QString DropoffWindow::createReceipt()
-{
+void DropoffWindow::printReceipts() {
     const Customer &customer = Session::instance().getCustomer();
     QString client = customer.firstName + " " + customer.lastName;
     if (client.trimmed().isEmpty()) client = "Unknown";
 
-    QString receipt = QString(
+    QString customerReceipt = QString(
         "             Sparkle Cleaners\n"
         "            165 Oak Grove Ave.\n"
         "           Fall River, MA 02720\n\n"
         "CLIENT: %1\n"
-        "PHONE : (508) 123 4567\n"
         "DROP  : %2\n"
-        "PICKUP: %3\n\n"
-        "PAYMENT  : On-pickup\n"
-        "EMPLOYEE : NA\n\n"
-    ).arg(client,
-          QDateTime::currentDateTime().toString("ddd MM/dd/yyyy hh:mm AP"),
-          QDateTime::currentDateTime().addDays(3).toString("ddd MM/dd/yyyy hh:mm AP"));
+        "PICKUP: %3\n"
+        "PAY   : On-pickup\n"
+    ).arg(customer.id,
+            currentOrder.dropoffDate,
+            currentOrder.pickupDate.isEmpty() ? "Unknown" : currentOrder.pickupDate);
+
+    QStringList subOrderReceipts;
 
     double total = 0.0;
-    int currentTicketId = ticketId; // Start with the current ticket ID
 
-    for (int row = 0; row < receiptTable->rowCount(); ++row) {
-        QTableWidgetItem *itemCell = receiptTable->item(row, 0);
+    for (const SubOrder &subOrder : currentOrder.subOrders) {
+        QString subOrderReceipt = QString(
+            "CLIENT: %1\n"
+        ).arg(customer.id);
 
-        // Check if this is a header row (non-editable)
-        if (!itemCell || !itemCell->flags().testFlag(Qt::ItemIsEditable)) {
-            // Add a new section header with the ticket ID
-            receipt += QString(
-                "------------------------------------------\n"
-                "TICKET ID: %1 (%2)\n"
-                "------------------------------------------\n"
-                "|GARMENT              |QUANTITY  |PRICE  |\n"
-                "------------------------------------------\n"
-            ).arg(currentTicketId).arg(itemCell->text());
-            currentTicketId++; // Increment the ticket ID for the next section
-            continue;
+        QString subOrderHeader = QString(
+            "------------------------------------------\n"
+            "%1 [%2]\n"
+            "------------------------------------------\n"
+            "|GARMENT              |QUANTITY  |PRICE  |\n"
+            "------------------------------------------\n"
+        ).arg(subOrder.type).arg(subOrder.id);
+
+        customerReceipt += subOrderHeader;
+        subOrderReceipt += subOrderHeader;
+
+        for (const Item &item : subOrder.items) {
+            QString itemLine = QString(" %1 %2 %3\n")
+                .arg(item.name.leftJustified(21))
+                .arg(QString::number(item.quantity).leftJustified(10))
+                .arg(QString::number(item.price, 'f', 2).leftJustified(7));
+
+            customerReceipt += itemLine;
+            subOrderReceipt += itemLine;
         }
 
-        // Process item rows
-        QString item = itemCell->text();
-        double price = receiptTable->item(row, 1)->text().toDouble();
-        int qty = qobject_cast<QSpinBox *>(receiptTable->cellWidget(row, 2))->value();
-        double subtotal = qty * price;
-        total += subtotal;
+        QString subtotal = QString(
+            "                       -------------------\n"
+            "                       SUBTOTAL:     $%1\n\n"
+        ).arg(subOrder.total, 0, 'f', 2);
 
-        receipt += QString("%1%2%3\n")
-            .arg(item.leftJustified(24))
-            .arg(QString::number(qty).rightJustified(10))
-            .arg(QString::number(subtotal, 'f', 2).rightJustified(10));
+        customerReceipt += subtotal;
+
+        subOrderReceipt += subtotal;
+        subOrderReceipt += QString("NOTE: %2\n").arg(currentOrder.orderNote);
+
+        subOrderReceipts.append(subOrderReceipt);
     }
 
-    receipt += QString(
+    // Add total and notes to the consolidated receipt
+    customerReceipt += QString(
         "                       -------------------\n"
         "                       TOTAL:     $%1\n\n"
         "NOTE: %2\n"
-    ).arg(total, 0, 'f', 2).arg(notesEdit->toPlainText());
+    ).arg(currentOrder.orderTotal, 0, 'f', 2).arg(currentOrder.orderNote);
 
-    return receipt;
+    for (const QString &subOrderReceipt : subOrderReceipts) {
+        printf("### Sub-Order ############################\n%s", 
+                subOrderReceipt.toStdString().c_str());
+    }
+    printf("\n### Customer Receipt #####################\n%s",
+            customerReceipt.toStdString().c_str());
 }
 
 void DropoffWindow::loadPricesFromIni(const QString &filename)
@@ -298,7 +298,7 @@ void DropoffWindow::loadPricesFromIni(const QString &filename)
             double price = s.value(key).toDouble(&ok);
             if (ok) items.append({key, price});
         }
-        // Pass the category name (tab name) to createCategoryTab
+        // Pass the type name (tab name) to createCategoryTab
         tabWidget->addTab(createCategoryTab(cat, items), cat);
         s.endGroup();
     }
@@ -316,7 +316,7 @@ QWidget *DropoffWindow::createCategoryTab(const QString &categoryName, const QLi
         // Create a button for the item
         QPushButton *btn = new QPushButton(QString("%1\n$%2").arg(itemName).arg(price, 0, 'f', 2), this);
 
-        // Connect the button's clicked signal to addItemToReceipt with the category name
+        // Connect the button's clicked signal to addItemToReceipt with the type name
         connect(btn, &QPushButton::clicked, this, [=]() {
             addItemToReceipt(categoryName, itemName, price);
         });

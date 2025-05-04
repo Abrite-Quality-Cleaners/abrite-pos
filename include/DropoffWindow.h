@@ -34,14 +34,13 @@ private slots:
 private:
     void initPrinter();
     void closePrinter();
-    void loadTicketId(const QString &storeIniPath);
     void handleCheckout(); // Refactored method
     void loadPricesFromIni(const QString &filename);
     QWidget *createCategoryTab(const QString &categoryName, const QList<QPair<QString, double>> &items);
     void addItemToReceipt(const QString &tabName, const QString &itemName, double price);
     void removeItem(int row);
     void updateTotal();
-    QString createReceipt(); // New method to generate the receipt
+    void printReceipts();
 
     QLineEdit *customerNameEdit;
     QLineEdit *dateTimeDisplay;
@@ -54,9 +53,6 @@ private:
     QTextEdit *notesEdit; // Textbox for order notes
     QTimer *dateTimeTimer; // Timer to update the date and time
     QSet<QString> addedHeaders; // Tracks which tab headers have been added
-
-    int ticketId;
-    QString ticketFile = "ticket_id.txt";
 
     Order currentOrder; // Order object to keep track of the current order
 };

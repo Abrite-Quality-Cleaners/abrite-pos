@@ -222,9 +222,9 @@ void PickupWindow::onOrderSelected() {
         return;
     }
 
-    // Check if the orderItems field is empty
-    QVariantList orderItems = selectedOrder["orderItems"].toList();
-    if (orderItems.isEmpty()) {
+    // Check if the subOrders field is empty
+    QVariantList subOrders = selectedOrder["subOrders"].toList();
+    if (subOrders.isEmpty()) {
         // Add a header row for legacy orders
         int row = receiptTable->rowCount();
         receiptTable->insertRow(row);
@@ -237,20 +237,20 @@ void PickupWindow::onOrderSelected() {
     }
 
     // Populate the receipt table with items and categories
-    for (const QVariant &categoryVariant : orderItems) {
-        QMap<QString, QVariant> category = categoryVariant.toMap();
+    for (const QVariant &subOrderVariant : subOrders) {
+        QMap<QString, QVariant> type = subOrderVariant.toMap();
 
-        // Add a header row for the category
+        // Add a header row for the type
         int headerRow = receiptTable->rowCount();
         receiptTable->insertRow(headerRow);
-        QTableWidgetItem *headerItem = new QTableWidgetItem(category["category"].toString());
+        QTableWidgetItem *headerItem = new QTableWidgetItem(type["type"].toString());
         headerItem->setFlags(Qt::NoItemFlags); // Make it non-editable
         headerItem->setTextAlignment(Qt::AlignCenter);
         receiptTable->setSpan(headerRow, 0, 1, receiptTable->columnCount()); // Span across all columns
         receiptTable->setItem(headerRow, 0, headerItem);
 
-        // Add the items in the category
-        QVariantList items = category["items"].toList();
+        // Add the items in the type
+        QVariantList items = type["items"].toList();
         for (const QVariant &itemVariant : items) {
             QMap<QString, QVariant> item = itemVariant.toMap();
 
