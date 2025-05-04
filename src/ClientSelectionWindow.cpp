@@ -31,6 +31,13 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     ticketEdit = new QLineEdit(this);
     ticketEdit->setPlaceholderText("Ticket");
 
+    // Set larger font size for text boxes
+    QString textBoxStyle = "QLineEdit { font-size: 20px; }";
+    firstNameEdit->setStyleSheet(textBoxStyle);
+    lastNameEdit->setStyleSheet(textBoxStyle);
+    phoneEdit->setStyleSheet(textBoxStyle);
+    ticketEdit->setStyleSheet(textBoxStyle);
+
     // Create search button
     searchButton = new QPushButton("Search", this);
 
@@ -75,6 +82,14 @@ ClientSelectionWindow::ClientSelectionWindow(QWidget *parent)
     // Add Add Customer and Edit Customer buttons to the same layout
     buttonLayout->addWidget(addCustomerButton);
     buttonLayout->addWidget(editCustomerButton);
+
+    // Set larger font size for buttons
+    QString buttonStyle = "QPushButton { font-size: 20px; }";
+    searchButton->setStyleSheet(buttonStyle);
+    dropOffButton->setStyleSheet(buttonStyle);
+    pickUpButton->setStyleSheet(buttonStyle);
+    addCustomerButton->setStyleSheet(buttonStyle);
+    editCustomerButton->setStyleSheet(buttonStyle);
 
     // Add the button layout to the main layout
     mainLayout->addLayout(buttonLayout, 0);

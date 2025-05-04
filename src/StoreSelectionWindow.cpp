@@ -53,17 +53,21 @@ StoreSelectionWindow::StoreSelectionWindow(QWidget *parent)
         emit storeSelected();
     });
 
-    QPushButton *communityButton = new QPushButton("");
+    QPushButton *communityButton = new QPushButton("Analytics");
     communityButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
+    communityButton->setEnabled(false);
     
     QPushButton *westportButton = new QPushButton("Dump Databases");
     westportButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
+    westportButton->setEnabled(false);
 
     QPushButton *financesButton = new QPushButton("Finances");
     financesButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
+    financesButton->setEnabled(false);
 
     QPushButton *pricesButton = new QPushButton("Prices");
     pricesButton->setStyleSheet(STORE_BUTTON_STYLESHEET);
+    pricesButton->setEnabled(false);
 
     gridLayout->addWidget(sparkleButton,   0, 0, 1, 1);
     gridLayout->addWidget(abriteButton,    0, 1, 1, 1);
