@@ -526,3 +526,81 @@ void MongoManager::changeDatabase(const QString &dbName) {
         qDebug() << "Error switching database:" << e.what();
     }
 }
+
+quint64 MongoManager::getNextId() {
+    try {
+        auto collection = database["NextId"];
+
+        // Find the nextId document
+        auto result = collection.find_one(
+            bsoncxx::builder::stream::document{} << "_id" << "nextId" << bsoncxx::builder::stream::finalize
+        );
+
+        if (result) {
+            auto view = result->view();
+            if (view["nextId"].type() == bsoncxx::type::k_int64) {
+                return static_cast<quint64>(view["nextId"].get_int64().value);
+            }
+        } else {
+            qDebug() << "NextId document not found. Initializing...";
+            setNextId(1); // Initialize the nextId if it doesn't exist
+            return 1;
+        }
+    } catch (const mongocxx::exception &e) {
+        qDebug() << "Error getting next ID:" << e.what();
+    }
+
+    return 0; // Return 0 if an error occurs
+}
+
+bool MongoManager::setNextId(quint64 nextId) {
+    try {
+        auto collection = database["NextId"];
+
+        // Upsert (insert or update) the nextId document
+        auto result = collection.update_one(
+            bsoncxx::builder::stream::document{} << "_id" << "nextId" << bsoncxx::builder::stream::finalize,
+            bsoncxx::builder::stream::document{} << "$set" << bsoncxx::builder::stream::open_document
+                                                 << "nextId" << static_cast<int64_t>(nextId)
+                                                 << bsoncxx::builder::stream::close_document
+                                                 << bsoncxx::builder::stream::finalize,
+            mongocxx::options::update{}.upsert(true) // Ensure the document is created if it doesn't exist
+        );
+
+        return result && result->modified_count() > 0 || result->upserted_id();
+    } catch (const mongocxx::exception &e) {
+        qDebug() << "Error setting next ID:" << e.what();
+    }
+
+    return false;
+}
+
+quint64 MongoManager::getThenIncrementNextId() {
+    try {
+        auto collection = database["NextId"];
+
+        // Atomically find and increment the nextId field
+        auto result = collection.find_one_and_update(
+            bsoncxx::builder::stream::document{} << "_id" << "nextId" << bsoncxx::builder::stream::finalize,
+            bsoncxx::builder::stream::document{} << "$inc" << bsoncxx::builder::stream::open_document
+                                                 << "nextId" << 1 << bsoncxx::builder::stream::close_document
+                                                 << bsoncxx::builder::stream::finalize,
+            mongocxx::options::find_one_and_update{}.return_document(mongocxx::options::return_document::k_before)
+        );
+
+        if (result) {
+            auto view = result->view();
+            if (view["nextId"].type() == bsoncxx::type::k_int64) {
+                return static_cast<quint64>(view["nextId"].get_int64().value);
+            }
+        } else {
+            qDebug() << "NextId document not found. Initializing...";
+            setNextId(1); // Initialize the nextId if it doesn't exist
+            return 1;
+        }
+    } catch (const mongocxx::exception &e) {
+        qDebug() << "Error getting and incrementing next ID:" << e.what();
+    }
+
+    return 0; // Return 0 if an error occurs
+}

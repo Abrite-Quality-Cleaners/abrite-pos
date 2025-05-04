@@ -13,13 +13,11 @@ protected:
         // Clean up the test database before each test
         mongoManager->getDatabase()["Customers"].delete_many({});
         mongoManager->getDatabase()["Orders"].delete_many({});
+        mongoManager->getDatabase()["NextId"].delete_many({});
     }
 
     // Per-test teardown
     void TearDown() override {
-        // Clean up the test database after each test
-        mongoManager->getDatabase()["Customers"].delete_many({});
-        mongoManager->getDatabase()["Orders"].delete_many({});
     }
 
     // Suite-wide setup
@@ -273,4 +271,50 @@ TEST_F(MongoManagerTest, DeserializeCustomerId) {
 
     QMap<QString, QVariant> fetchedOrder = mongoManager->getOrder(orderId);
     ASSERT_EQ(fetchedOrder["customerId"].toString(), "64a7b2f5e4b0c123456789ab");
+}
+
+TEST_F(MongoManagerTest, InitializeNextIdIfNotExists) {
+    // Drop the NextId collection to simulate a missing document
+    mongoManager->getDatabase()["NextId"].drop();
+
+    // Initialize the document
+    quint64 initialId = 1000;
+    bool result = mongoManager->setNextId(initialId);
+    ASSERT_TRUE(result);
+
+    // Call getNextId, which should initialize the document
+    quint64 nextId = mongoManager->getNextId();
+    ASSERT_EQ(nextId, initialId); // Should initialize to 1
+
+    // Verify that the document was created with the initial ID
+    quint64 nextId2 = mongoManager->getNextId();
+    ASSERT_EQ(nextId2, initialId);
+}
+
+TEST_F(MongoManagerTest, SetAndGetNextIdWithoutIncrement) {
+    // Set the next ID to a specific value
+    quint64 initialId = 2000;
+    ASSERT_TRUE(mongoManager->setNextId(initialId));
+
+    // Verify that getNextId retrieves the current ID without incrementing
+    quint64 currentId = mongoManager->getNextId();
+    ASSERT_EQ(currentId, initialId);
+
+    // Verify that the ID remains unchanged
+    currentId = mongoManager->getNextId();
+    ASSERT_EQ(currentId, initialId);
+}
+
+TEST_F(MongoManagerTest, SetAndGetThenIncrementNextId) {
+    // Set the next ID to a specific value
+    quint64 initialId = 3000;
+    ASSERT_TRUE(mongoManager->setNextId(initialId));
+
+    // Verify that getThenIncrementNextId retrieves the ID
+    quint64 nextId = mongoManager->getThenIncrementNextId();
+    ASSERT_EQ(nextId, initialId);
+
+    // Verify that the next call retrieves an incremented ID
+    nextId = mongoManager->getThenIncrementNextId();
+    ASSERT_EQ(nextId, initialId + 1);
 }

@@ -45,6 +45,10 @@ public:
 
     void changeDatabase(const QString &dbName);
 
+    bool setNextId(quint64 nextId);
+    quint64 getNextId();
+    quint64 getThenIncrementNextId();
+
 private:
 
     mongocxx::instance mongoInstance; // MongoDB driver instance
