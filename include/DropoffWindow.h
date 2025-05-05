@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QSet>
 #include "Order.h"
+#include "ReceiptPrinter.h"
 
 class DropoffWindow : public QMainWindow
 {
@@ -53,6 +54,7 @@ private:
     QTextEdit *notesEdit; // Textbox for order notes
     QTimer *dateTimeTimer; // Timer to update the date and time
     QSet<QString> addedHeaders; // Tracks which tab headers have been added
+    ReceiptPrinter printer; // Receipt printer instance
 
     Order currentOrder; // Order object to keep track of the current order
 };

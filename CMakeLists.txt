@@ -24,6 +24,13 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 find_package(mongocxx REQUIRED)
 find_package(bsoncxx REQUIRED)
 
+# Find libusb
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
+include_directories(${LIBUSB_INCLUDE_DIRS})
+link_directories(${LIBUSB_LIBRARY_DIRS})
+add_definitions(${LIBUSB_CFLAGS_OTHER})
+
 file(GLOB_RECURSE PROJECT_SOURCES
     src/*.cpp
     include/*.h
@@ -52,6 +59,9 @@ target_link_libraries(abrite-pos PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 # Link MongoDB C++ Driver libraries
 target_include_directories(abrite-pos PRIVATE include /usr/local/include/mongocxx/v_noabi /usr/local/include/bsoncxx/v_noabi)
 target_link_libraries(abrite-pos PRIVATE mongocxx bsoncxx)
+
+# Link libusb
+target_link_libraries(abrite-pos PRIVATE ${LIBUSB_LIBRARIES})
 
 # Add Google Test
 find_package(GTest REQUIRED)

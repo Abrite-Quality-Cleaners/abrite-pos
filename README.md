@@ -7,20 +7,23 @@ export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ```
 3. From the top of the `abrite-pos` repo execute the following to build the application
 ```
-make -S . -B build && cmake --build build -- -j`nproc`
+cmake -S . -B build && cmake --build build -- -j`nproc`
+4. 
 ```
-4. Enter the build directory
+./create_udev_rule_for_printer.sh
+```
+5. Enter the build directory
 ```
 cd build
 ```
-5. Launch the application
+6. Launch the application
 ```
 ./abrite-pos
 ```
 
 ## Installing Dependencies Ubuntu 25.04
 ```
-sudo apt install -y git cmake g++ qt6-base-dev gnupg curl pkg-config libssl-dev libgtest-dev
+sudo apt install -y git cmake g++ qt6-base-dev gnupg curl pkg-config libssl-dev libgtest-dev libusb-1.0-0-dev
 ```
 
 ## Install MongoDB

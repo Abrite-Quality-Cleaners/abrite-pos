@@ -158,6 +158,10 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     connect(dateTimeTimer, &QTimer::timeout, this, &DropoffWindow::updateDateTime);
     dateTimeTimer->start(1000); // Update every second
     updateDateTime(); // Initial update
+
+    if (!printer.init()) {
+        qDebug() << "Failed to initialize printer";
+    }
 }
 
 DropoffWindow::~DropoffWindow()
@@ -230,9 +234,6 @@ void DropoffWindow::printReceipts() {
             currentOrder.pickupDate.isEmpty() ? "Unknown" : currentOrder.pickupDate);
 
     QStringList subOrderReceipts;
-
-    double total = 0.0;
-
     for (const SubOrder &subOrder : currentOrder.subOrders) {
         QString subOrderReceipt = QString(
             "CLIENT: %1\n"
@@ -250,10 +251,10 @@ void DropoffWindow::printReceipts() {
         subOrderReceipt += subOrderHeader;
 
         for (const Item &item : subOrder.items) {
-            QString itemLine = QString(" %1 %2 %3\n")
+            QString itemLine = QString(" %1 %2 $%3\n")
                 .arg(item.name.leftJustified(21))
                 .arg(QString::number(item.quantity).leftJustified(10))
-                .arg(QString::number(item.price, 'f', 2).leftJustified(7));
+                .arg(QString::number(item.price, 'f', 2).rightJustified(6));
 
             customerReceipt += itemLine;
             subOrderReceipt += itemLine;
@@ -261,8 +262,8 @@ void DropoffWindow::printReceipts() {
 
         QString subtotal = QString(
             "                       -------------------\n"
-            "                       SUBTOTAL:     $%1\n\n"
-        ).arg(subOrder.total, 0, 'f', 2);
+            "                       SUBTOTAL:  $%1\n\n"
+        ).arg(subOrder.total, 0, 'f', 2).rightJustified(6);
 
         customerReceipt += subtotal;
 
@@ -272,19 +273,30 @@ void DropoffWindow::printReceipts() {
         subOrderReceipts.append(subOrderReceipt);
     }
 
-    // Add total and notes to the consolidated receipt
     customerReceipt += QString(
         "                       -------------------\n"
         "                       TOTAL:     $%1\n\n"
         "NOTE: %2\n"
-    ).arg(currentOrder.orderTotal, 0, 'f', 2).arg(currentOrder.orderNote);
+    ).arg(currentOrder.orderTotal, 0, 'f', 2).arg(currentOrder.orderNote).rightJustified(6);
 
+    printf("\n### Customer Receipt #####################\n%s",
+            customerReceipt.toStdString().c_str());
+    // Print the customer receipt
+    if (!printer.printText(customerReceipt)) {
+        qDebug() << "Failed to print customer receipt";
+    }
+    printer.cutPaper();
+
+    // Print each suborder receipt
     for (const QString &subOrderReceipt : subOrderReceipts) {
         printf("### Sub-Order ############################\n%s", 
                 subOrderReceipt.toStdString().c_str());
+
+        if (!printer.printText(subOrderReceipt)) {
+            qDebug() << "Failed to print suborder receipt";
+        }
+        printer.cutPaper();
     }
-    printf("\n### Customer Receipt #####################\n%s",
-            customerReceipt.toStdString().c_str());
 }
 
 void DropoffWindow::loadPricesFromIni(const QString &filename)
