@@ -21,16 +21,20 @@ public slots:
 
 private slots:
     void handleCheckout();
+    void handlePayment();
 
 private:
     void onOrderSelected();
     void populateOrdersTable();
 
+    QLabel *orderIdLabel;
     QTableWidget *receiptTable;
     QLineEdit *ticketIdDisplay;
     QLineEdit *customerNameEdit;
     QTableWidget *customerOrdersTable;
     QLabel *totalLabel;
+    QLineEdit *paymentMethodEdit;
+    QLineEdit *amountPaidEdit;
     QTextEdit *customerNotesEdit;
     QTextEdit *notesEdit;
 };

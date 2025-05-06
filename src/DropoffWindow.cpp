@@ -87,13 +87,21 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     // Payment Method Section
     QHBoxLayout *paymentMethodRow = new QHBoxLayout();
     QLabel *paymentMethodLabel = new QLabel("Payment Method:", this);
-    paymentMethodLabel->setStyleSheet("font-weight: bold;"); // Bold the label
+    paymentMethodLabel->setStyleSheet("font-weight: bold;");
     paymentMethodEdit = new QLineEdit("On-pickup", this);
     paymentMethodEdit->setReadOnly(true);
-    paymentMethodEdit->setFixedWidth(200);
+    paymentMethodEdit->setFixedWidth(100);
+
+    QLabel *amountPaidLabel = new QLabel("Amount Paid:", this);
+    amountPaidLabel->setStyleSheet("font-weight: bold;");
+    amountPaidEdit = new QLineEdit("$0.00", this);
+    amountPaidEdit->setReadOnly(true);
+    amountPaidEdit->setFixedWidth(100);
 
     paymentMethodRow->addWidget(paymentMethodLabel);
     paymentMethodRow->addWidget(paymentMethodEdit);
+    paymentMethodRow->addWidget(amountPaidLabel);
+    paymentMethodRow->addWidget(amountPaidEdit);
     paymentMethodRow->addStretch();
     rightLayout->addLayout(paymentMethodRow);
 
@@ -119,19 +127,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     payButton->setMinimumWidth(100);
     btnRow->addWidget(payButton);
     connect(payButton, &QPushButton::clicked, this, [=]() {
-        PaymentDialog paymentDialog(this);
-        if (paymentDialog.exec() == QDialog::Accepted) {
-            QString paymentMethod = paymentDialog.getSelectedPaymentMethod();
-            QString checkNumber = paymentDialog.getCheckNumber();
-
-            qDebug() << "Payment method selected:" << paymentMethod;
-            if (paymentMethod == "Check") {
-                qDebug() << "Check Number:" << checkNumber;
-            }
-
-            // Update the payment method text box
-            paymentMethodEdit->setText(paymentMethod);
-        }
+        handlePayment();
     });
 
     // Cancel Button
@@ -177,6 +173,7 @@ void DropoffWindow::handleCheckout()
     currentOrder.dropoffDate = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
     currentOrder.orderNote = notesEdit->toPlainText();
     currentOrder.orderTotal = 0.0;
+    currentOrder.balance = 0.0;  // Initialize balance to match order total
     currentOrder.subOrders.clear();
     
     // Build an order
@@ -205,6 +202,14 @@ void DropoffWindow::handleCheckout()
     }
     currentOrder.orderTotal += subOrder.total;
     currentOrder.subOrders.append(subOrder);
+
+    // If there's a payment, update the balance
+    if (!currentOrder.paymentType.isEmpty()) {
+        double amountPaid = currentOrder.orderTotal - currentOrder.balance;
+        currentOrder.balance = currentOrder.orderTotal - amountPaid;
+    } else {
+        currentOrder.balance = currentOrder.orderTotal;  // Full balance if no payment
+    }
 
     QString orderId = Session::instance().getMongoManager().addOrder(currentOrder);
     if (!orderId.isEmpty()) {
@@ -529,4 +534,57 @@ void DropoffWindow::updateDateTime()
 {
     QString currentDateTime = QDateTime::currentDateTime().toString("MM/dd/yyyy hh:mm:ss AP");
     dateTimeDisplay->setText(currentDateTime);
+}
+
+void DropoffWindow::handlePayment() {
+    // Get the current total from the total label
+    QString totalText = totalLabel->text();
+    double currentTotal = totalText.mid(8).toDouble(); // Remove "Total: $" and convert to double
+    
+    PaymentDialog paymentDialog(this, currentTotal);
+
+    // Set existing payment information if available
+    if (!currentOrder.paymentType.isEmpty()) {
+        paymentDialog.setPaymentMethod(currentOrder.paymentType);
+        double existingAmount = currentOrder.orderTotal - currentOrder.balance;
+        paymentDialog.setPaymentAmount(existingAmount);
+        if (currentOrder.paymentType == "Check") {
+            // Extract check number from order notes
+            int checkIndex = currentOrder.orderNote.indexOf("Check #: ");
+            if (checkIndex != -1) {
+                QString checkNumber = currentOrder.orderNote.mid(checkIndex + 9).split("\n")[0];
+                paymentDialog.setCheckNumber(checkNumber);
+            }
+        }
+    }
+
+    if (paymentDialog.exec() == QDialog::Accepted) {
+        QString paymentMethod = paymentDialog.getSelectedPaymentMethod();
+        QString checkNumber = paymentDialog.getCheckNumber();
+        double paymentAmount = paymentDialog.getPaymentAmount();
+
+        // Calculate new balance
+        double newBalance = currentTotal - paymentAmount;
+
+        // Update order with payment information
+        currentOrder.paymentType = paymentMethod;
+        currentOrder.paymentDate = QDateTime::currentDateTime().toString("MM/dd/yy hh:mm:ss");
+        currentOrder.paymentEmployee = Session::instance().getUser().getUsername();
+        currentOrder.balance = newBalance;
+        currentOrder.orderTotal = currentTotal; // Update the order total
+
+        if (paymentMethod == "Check") {
+            // Store check number in order notes if it's a check payment
+            if (!currentOrder.orderNote.isEmpty()) {
+                currentOrder.orderNote += "\n";
+            }
+            currentOrder.orderNote += "Check #: " + checkNumber;
+            // Update the payment method display with check number
+            paymentMethodEdit->setText(QString("Check #%1").arg(checkNumber));
+        } else {
+            // Update the payment method display
+            paymentMethodEdit->setText(paymentMethod);
+        }
+        amountPaidEdit->setText(QString("$%1").arg(paymentAmount, 0, 'f', 2));
+    }
 }

@@ -31,17 +31,20 @@ public slots:
 
 private slots:
     void updateDateTime(); // Slot to update the date and time
+    void handleCheckout(); // Refactored method
+    void handlePayment();
 
 private:
     void initPrinter();
     void closePrinter();
-    void handleCheckout(); // Refactored method
     void loadPricesFromIni(const QString &filename);
     QWidget *createCategoryTab(const QString &categoryName, const QList<QPair<QString, double>> &items);
     void addItemToReceipt(const QString &tabName, const QString &itemName, double price);
     void removeItem(int row);
     void updateTotal();
     void printReceipts();
+    void onOrderSelected();
+    void populateOrdersTable();
 
     QLineEdit *customerNameEdit;
     QLineEdit *dateTimeDisplay;
@@ -50,10 +53,11 @@ private:
     QLabel *totalLabel;
     QLabel *paymentMethodLabel; // Label for payment method
     QLineEdit *paymentMethodEdit;
-    QMap<QString, int> itemRowMap;
+    QLineEdit *amountPaidEdit;
     QTextEdit *notesEdit; // Textbox for order notes
     QTimer *dateTimeTimer; // Timer to update the date and time
     QSet<QString> addedHeaders; // Tracks which tab headers have been added
+    QMap<QString, int> itemRowMap; // Maps item names to their row numbers
     ReceiptPrinter printer; // Receipt printer instance
 
     Order currentOrder; // Order object to keep track of the current order

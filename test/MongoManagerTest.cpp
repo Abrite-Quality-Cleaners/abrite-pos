@@ -84,6 +84,7 @@ TEST_F(MongoManagerTest, AddAndGetOrder) {
             }
         }},
         {"orderTotal", 35.0},
+        {"balance", 35.0},  // Initial balance equals order total
         {"status", "in-progress"}
     };
 
@@ -93,12 +94,10 @@ TEST_F(MongoManagerTest, AddAndGetOrder) {
     QMap<QString, QVariant> fetchedOrder = mongoManager->getOrder(orderId);
     ASSERT_EQ(fetchedOrder["store"].toString(), "Store A");
     ASSERT_EQ(fetchedOrder["orderTotal"].toDouble(), 35.0);
+    ASSERT_EQ(fetchedOrder["balance"].toDouble(), 35.0);
 
     // Dump the contents of the "orders" collection
     mongoManager->dumpCollection("orders");
-
-    // Optionally, dump the entire database
-    mongoManager->dumpDatabase();
 }
 
 TEST_F(MongoManagerTest, AddAndRetrieveCustomerObject) {
@@ -144,6 +143,7 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
         {0, "Dryclean", {{"Pants", 10.0, 2}, {"Jacket", 15.0, 1}}, 35.0}
     };
     order.orderTotal = 35.0;
+    order.balance = 35.0;  // Initial balance equals order total
     order.status = "in-progress";
     order.ticketNumber = "T12345";
     order.dropoffDate = "2023-10-01";
@@ -157,6 +157,7 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderObject) {
     ASSERT_EQ(fetchedOrder.customerId, "64a7b2f5e4b0c123456789ab");
     ASSERT_EQ(fetchedOrder.store, "Abrite Deliveries");
     ASSERT_EQ(fetchedOrder.orderTotal, 35.0);
+    ASSERT_EQ(fetchedOrder.balance, 35.0);
     ASSERT_EQ(fetchedOrder.subOrders.size(), 1);
     ASSERT_EQ(fetchedOrder.subOrders[0].type, "Dryclean");
     ASSERT_EQ(fetchedOrder.subOrders[0].items.size(), 2);
@@ -337,4 +338,71 @@ TEST_F(MongoManagerTest, AddAndRetrieveOrderWithSubOrderId) {
     ASSERT_EQ(fetchedOrder.subOrders.size(), 2);
     ASSERT_EQ(fetchedOrder.subOrders[0].id, 1001);
     ASSERT_EQ(fetchedOrder.subOrders[1].id, 1002);
+}
+
+// Add new test for payment and balance updates
+TEST_F(MongoManagerTest, UpdateOrderPaymentAndBalance) {
+    // First create a customer
+    QMap<QString, QVariant> customerData = {
+        {"firstName", "John"},
+        {"lastName", "Doe"}
+    };
+    QString customerId = mongoManager->addCustomer(customerData);
+    ASSERT_FALSE(customerId.isEmpty());
+
+    // Create an order
+    QMap<QString, QVariant> orderData = {
+        {"customerId", customerId},
+        {"store", "Store A"},
+        {"subOrders", QVariantList{
+            QMap<QString, QVariant>{
+                {"type", "Dryclean"},
+                {"items", QVariantList{
+                    QMap<QString, QVariant>{{"name", "Pants"}, {"price", 10.0}, {"quantity", 2}},
+                    QMap<QString, QVariant>{{"name", "Jacket"}, {"price", 15.0}, {"quantity", 1}}
+                }},
+                {"total", 35.0}
+            }
+        }},
+        {"orderTotal", 35.0},
+        {"balance", 35.0},  // Initial balance equals order total
+        {"status", "in-progress"}
+    };
+
+    QString orderId = mongoManager->addOrder(orderData);
+    ASSERT_FALSE(orderId.isEmpty());
+
+    // Update the order with a payment
+    QMap<QString, QVariant> updateData = {
+        {"paymentType", "Cash"},
+        {"paymentDate", "2023-10-01 14:30:00"},
+        {"paymentEmployee", "John"},
+        {"balance", 20.0}  // $15 payment made
+    };
+
+    bool updateSuccess = mongoManager->updateOrder(orderId, updateData);
+    ASSERT_TRUE(updateSuccess);
+
+    // Verify the update
+    QMap<QString, QVariant> updatedOrder = mongoManager->getOrder(orderId);
+    ASSERT_EQ(updatedOrder["paymentType"].toString(), "Cash");
+    ASSERT_EQ(updatedOrder["balance"].toDouble(), 20.0);
+
+    // Test check payment with check number
+    updateData = {
+        {"paymentType", "Check"},
+        {"paymentDate", "2023-10-01 15:30:00"},
+        {"paymentEmployee", "John"},
+        {"balance", 0.0},  // Full payment
+        {"orderNote", "Check #: 12345"}
+    };
+
+    updateSuccess = mongoManager->updateOrder(orderId, updateData);
+    ASSERT_TRUE(updateSuccess);
+
+    // Verify the check payment update
+    updatedOrder = mongoManager->getOrder(orderId);
+    ASSERT_EQ(updatedOrder["paymentType"].toString(), "Check");
+    ASSERT_EQ(updatedOrder["balance"].toDouble(), 0.0);
+    ASSERT_TRUE(updatedOrder["orderNote"].toString().contains("Check #: 12345"));
 }

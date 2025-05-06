@@ -8,6 +8,7 @@
 #include <QSplitter>
 #include <QDateTime>
 #include "PaymentDialog.h"
+#include <QSizePolicy>
 
 PickupWindow::PickupWindow(QWidget *parent)
     : QMainWindow(parent) {
@@ -15,7 +16,7 @@ PickupWindow::PickupWindow(QWidget *parent)
     QHBoxLayout *mainLayout = new QHBoxLayout(central);
 
     setCentralWidget(central);
-    resize(900, 900);
+    resize(1280, 1024); // Updated to match DropoffWindow size
     setWindowTitle("Pickup Interface");
 
     // Left-side layout (Orders table, Customer info, and Customer notes)
@@ -66,6 +67,12 @@ PickupWindow::PickupWindow(QWidget *parent)
     // Right-side layout (Receipt widget, Total, and Order Notes)
     QVBoxLayout *rightLayout = new QVBoxLayout();
 
+    // Order ID Label
+    orderIdLabel = new QLabel(this);
+    orderIdLabel->setStyleSheet("font-size: 16px; font-weight: bold;");
+    orderIdLabel->setAlignment(Qt::AlignCenter);
+    rightLayout->addWidget(orderIdLabel);
+
     // Receipt Table
     receiptTable = new QTableWidget(this);
     receiptTable->setColumnCount(3);
@@ -80,6 +87,27 @@ PickupWindow::PickupWindow(QWidget *parent)
     totalLabel = new QLabel("Total: $0.00", this);
     totalLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
     rightLayout->addWidget(totalLabel);
+
+    // Payment Method Section
+    QHBoxLayout *paymentMethodRow = new QHBoxLayout();
+    QLabel *paymentMethodLabel = new QLabel("Payment Method:", this);
+    paymentMethodLabel->setStyleSheet("font-weight: bold;");
+    paymentMethodEdit = new QLineEdit("On-pickup", this);
+    paymentMethodEdit->setReadOnly(true);
+    paymentMethodEdit->setFixedWidth(100);
+
+    QLabel *amountPaidLabel = new QLabel("Amount Paid:", this);
+    amountPaidLabel->setStyleSheet("font-weight: bold;");
+    amountPaidEdit = new QLineEdit("$0.00", this);
+    amountPaidEdit->setReadOnly(true);
+    amountPaidEdit->setFixedWidth(100);
+
+    paymentMethodRow->addWidget(paymentMethodLabel);
+    paymentMethodRow->addWidget(paymentMethodEdit);
+    paymentMethodRow->addWidget(amountPaidLabel);
+    paymentMethodRow->addWidget(amountPaidEdit);
+    paymentMethodRow->addStretch();
+    rightLayout->addLayout(paymentMethodRow);
 
     // Order Notes Section
     QLabel *orderNotesLabel = new QLabel("Order Notes:", this);
@@ -100,18 +128,7 @@ PickupWindow::PickupWindow(QWidget *parent)
     QPushButton *paymentButton = new QPushButton("Payment", this);
     paymentButton->setMinimumWidth(100);
     btnRow->addWidget(paymentButton);
-    connect(paymentButton, &QPushButton::clicked, this, [=]() {
-        PaymentDialog paymentDialog(this);
-        if (paymentDialog.exec() == QDialog::Accepted) {
-            QString paymentMethod = paymentDialog.getSelectedPaymentMethod();
-            QString checkNumber = paymentDialog.getCheckNumber();
-
-            qDebug() << "Payment method selected:" << paymentMethod;
-            if (paymentMethod == "Check") {
-                qDebug() << "Check Number:" << checkNumber;
-            }
-        }
-    });
+    connect(paymentButton, &QPushButton::clicked, this, &PickupWindow::handlePayment);
 
     QPushButton *cancelButton = new QPushButton("Cancel", this);
     cancelButton->setMinimumWidth(100);
@@ -186,6 +203,9 @@ void PickupWindow::populateOrdersTable() {
         QTableWidgetItem *paymentTypeItem = new QTableWidgetItem(order["paymentType"].toString());
         QTableWidgetItem *orderTotalItem = new QTableWidgetItem(QString::number(order["orderTotal"].toDouble(), 'f', 2));
 
+        // Store the order ID in the first column's item
+        dropoffDateItem->setData(Qt::UserRole, order["_id"].toString());
+
         customerOrdersTable->setItem(row, 0, dropoffDateItem);
         customerOrdersTable->setItem(row, 1, readyDateItem);
         customerOrdersTable->setItem(row, 2, paymentTypeItem);
@@ -201,25 +221,57 @@ void PickupWindow::onOrderSelected() {
     int selectedRow = customerOrdersTable->currentRow();
     if (selectedRow < 0) {
         qDebug() << "No order selected.";
+        orderIdLabel->setText("");
+        totalLabel->setText("Total: $0.00");
         return;
     }
 
-    // Get the order data
-    QString dropoffDate = customerOrdersTable->item(selectedRow, 0)->text();
-    QList<QMap<QString, QVariant>> orders = Session::instance().getMongoManager().getOrdersByCustomer(Session::instance().getCustomer().id);
-
-    // Find the selected order
-    QMap<QString, QVariant> selectedOrder;
-    for (const auto &order : orders) {
-        if (order["dropoffDate"].toString() == dropoffDate) {
-            selectedOrder = order;
-            break;
-        }
+    // Get the order ID from the selected row
+    QString orderId = customerOrdersTable->item(selectedRow, 0)->data(Qt::UserRole).toString();
+    if (orderId.isEmpty()) {
+        qDebug() << "No order ID found for selected row.";
+        orderIdLabel->setText("");
+        totalLabel->setText("Total: $0.00");
+        return;
     }
 
+    // Get the order data directly using the ID
+    QMap<QString, QVariant> selectedOrder = Session::instance().getMongoManager().getOrder(orderId);
     if (selectedOrder.isEmpty()) {
         qDebug() << "Selected order not found.";
+        orderIdLabel->setText("");
+        totalLabel->setText("Total: $0.00");
         return;
+    }
+
+    // Update Order ID label
+    orderIdLabel->setText(QString("Order #%1").arg(orderId));
+
+    // Update total label
+    double orderTotal = selectedOrder["orderTotal"].toDouble();
+    totalLabel->setText(QString("Total: $%1").arg(orderTotal, 0, 'f', 2));
+
+    // Update payment method display
+    QString paymentType = selectedOrder["paymentType"].toString();
+    if (!paymentType.isEmpty()) {
+        if (paymentType == "Check") {
+            // Extract check number from order notes
+            QString notes = selectedOrder["orderNote"].toString();
+            int checkIndex = notes.indexOf("Check #: ");
+            if (checkIndex != -1) {
+                QString checkNumber = notes.mid(checkIndex + 9).split("\n")[0];
+                paymentMethodEdit->setText(QString("Check #%1").arg(checkNumber));
+            } else {
+                paymentMethodEdit->setText("Check");
+            }
+        } else {
+            paymentMethodEdit->setText(paymentType);
+        }
+        double amountPaid = orderTotal - selectedOrder["balance"].toDouble();
+        amountPaidEdit->setText(QString("$%1").arg(amountPaid, 0, 'f', 2));
+    } else {
+        paymentMethodEdit->setText("On-pickup");
+        amountPaidEdit->setText("$0.00");
     }
 
     // Check if the subOrders field is empty
@@ -240,10 +292,11 @@ void PickupWindow::onOrderSelected() {
     for (const QVariant &subOrderVariant : subOrders) {
         QMap<QString, QVariant> type = subOrderVariant.toMap();
 
-        // Add a header row for the type
+        // Add a header row for the type with ID in brackets
         int headerRow = receiptTable->rowCount();
         receiptTable->insertRow(headerRow);
-        QTableWidgetItem *headerItem = new QTableWidgetItem(type["type"].toString());
+        QString headerText = QString("%1 [%2]").arg(type["type"].toString()).arg(type["id"].toInt());
+        QTableWidgetItem *headerItem = new QTableWidgetItem(headerText);
         headerItem->setFlags(Qt::NoItemFlags); // Make it non-editable
         headerItem->setTextAlignment(Qt::AlignCenter);
         receiptTable->setSpan(headerRow, 0, 1, receiptTable->columnCount()); // Span across all columns
@@ -264,6 +317,96 @@ void PickupWindow::onOrderSelected() {
             receiptTable->setItem(itemRow, 0, itemName);
             receiptTable->setItem(itemRow, 1, itemPrice);
             receiptTable->setItem(itemRow, 2, itemQuantity);
+        }
+    }
+}
+
+void PickupWindow::handlePayment() {
+    // Get the selected row
+    int selectedRow = customerOrdersTable->currentRow();
+    if (selectedRow < 0) {
+        qDebug() << "No order selected.";
+        return;
+    }
+
+    // Get the order ID from the selected row
+    QString orderId = customerOrdersTable->item(selectedRow, 0)->data(Qt::UserRole).toString();
+    if (orderId.isEmpty()) {
+        qDebug() << "No order ID found for selected row.";
+        return;
+    }
+
+    // Get the order data
+    QMap<QString, QVariant> selectedOrder = Session::instance().getMongoManager().getOrder(orderId);
+    if (selectedOrder.isEmpty()) {
+        qDebug() << "Selected order not found.";
+        return;
+    }
+
+    // Show payment dialog with order total
+    double orderTotal = selectedOrder["orderTotal"].toDouble();
+    PaymentDialog paymentDialog(this, orderTotal);
+
+    // Set existing payment information if available
+    QString existingPaymentMethod = selectedOrder["paymentType"].toString();
+    if (!existingPaymentMethod.isEmpty()) {
+        paymentDialog.setPaymentMethod(existingPaymentMethod);
+        double existingAmount = orderTotal - selectedOrder["balance"].toDouble();
+        paymentDialog.setPaymentAmount(existingAmount);
+        if (existingPaymentMethod == "Check") {
+            // Extract check number from order notes
+            QString notes = selectedOrder["orderNote"].toString();
+            int checkIndex = notes.indexOf("Check #: ");
+            if (checkIndex != -1) {
+                QString checkNumber = notes.mid(checkIndex + 9).split("\n")[0];
+                paymentDialog.setCheckNumber(checkNumber);
+            }
+        }
+    }
+
+    if (paymentDialog.exec() == QDialog::Accepted) {
+        QString paymentMethod = paymentDialog.getSelectedPaymentMethod();
+        QString checkNumber = paymentDialog.getCheckNumber();
+        double paymentAmount = paymentDialog.getPaymentAmount();
+
+        // Calculate new balance
+        double currentBalance = selectedOrder["balance"].toDouble();
+        double newBalance = currentBalance - paymentAmount;
+
+        // Update order with payment information
+        QMap<QString, QVariant> updateData;
+        updateData["paymentType"] = paymentMethod;
+        updateData["paymentDate"] = QDateTime::currentDateTime().toString("MM/dd/yy hh:mm:ss");
+        updateData["paymentEmployee"] = Session::instance().getUser().getUsername();
+        updateData["balance"] = newBalance;  // Ensure balance is included in the update
+
+        if (paymentMethod == "Check") {
+            // Add check number to order notes
+            QString notes = selectedOrder["orderNote"].toString();
+            if (!notes.isEmpty()) {
+                notes += "\n";
+            }
+            notes += "Check #: " + checkNumber;
+            updateData["orderNote"] = notes;
+        }
+
+        // Update the order in the database
+        if (Session::instance().getMongoManager().updateOrder(orderId, updateData)) {
+            // Update the payment method display
+            if (paymentMethod == "Check") {
+                paymentMethodEdit->setText(QString("Check #%1").arg(checkNumber));
+            } else {
+                paymentMethodEdit->setText(paymentMethod);
+            }
+            amountPaidEdit->setText(QString("$%1").arg(paymentAmount, 0, 'f', 2));
+            
+            // Refresh the orders table
+            populateOrdersTable();
+            
+            // Select the same order again to refresh the display
+            customerOrdersTable->selectRow(selectedRow);
+        } else {
+            qDebug() << "Failed to update order with payment information.";
         }
     }
 }

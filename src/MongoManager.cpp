@@ -370,6 +370,7 @@ QString MongoManager::addOrder(const Order &order) {
         {"store", order.store},
         {"subOrders", subOrdersList},
         {"orderTotal", order.orderTotal},
+        {"balance", order.balance},
         {"status", order.status},
         {"ticketNumber", order.ticketNumber},
         {"dropoffDate", order.dropoffDate},
@@ -386,6 +387,7 @@ QString MongoManager::addOrder(const Order &order) {
         {"orderReadyDate", order.orderReadyDate}
     };
 
+    qDebug() << "Adding order with data:" << orderData;  // Debug output
     return addOrder(orderData);
 }
 
@@ -397,11 +399,14 @@ Order MongoManager::getOrderById(const QString &orderId) {
         return Order();
     }
 
+    qDebug() << "Retrieved order data:" << data;  // Debug output
+
     Order order;
     order.id = orderId;
     order.customerId = data["customerId"].toString();
     order.store = data["store"].toString();
     order.orderTotal = data["orderTotal"].toDouble();
+    order.balance = data["balance"].toDouble();
     order.status = data["status"].toString();
     order.ticketNumber = data["ticketNumber"].toString();
     order.dropoffDate = data["dropoffDate"].toString();
@@ -416,6 +421,8 @@ Order MongoManager::getOrderById(const QString &orderId) {
     order.orderNote = data["orderNote"].toString();
     order.rackNumber = data["rackNumber"].toString();
     order.orderReadyDate = data["orderReadyDate"].toString();
+
+    qDebug() << "Deserialized order balance:" << order.balance;  // Debug output
 
     QVariantList subOrdersList = data["subOrders"].toList();
     for (const QVariant &subOrderVariant : subOrdersList) {

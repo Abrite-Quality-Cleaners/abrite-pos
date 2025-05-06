@@ -2,55 +2,109 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMessageBox>
+#include <QDebug>
 
-PaymentDialog::PaymentDialog(QWidget *parent)
-    : QDialog(parent), selectedPaymentMethod(""), checkNumber("") {
-    setWindowTitle("Select Payment Method");
+PaymentDialog::PaymentDialog(QWidget *parent, double orderTotal)
+    : QDialog(parent), orderTotal(orderTotal) {
+    setWindowTitle("Payment");
+    setModal(true);
 
-    // Create a horizontal layout for the buttons
-    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
-    // Cash button
-    cashButton = new QPushButton("Cash", this);
-    cashButton->setMinimumSize(100, 82);
-    buttonLayout->addWidget(cashButton);
-    connect(cashButton, &QPushButton::clicked, this, &PaymentDialog::handleCash);
+    // Order Total Display
+    orderTotalLabel = new QLabel(QString("Order Total: $%1").arg(orderTotal, 0, 'f', 2), this);
+    orderTotalLabel->setStyleSheet("font-size: 16px; font-weight: bold;");
+    mainLayout->addWidget(orderTotalLabel);
 
-    // Credit button
-    creditButton = new QPushButton("Credit", this);
-    creditButton->setMinimumSize(100, 82);
-    buttonLayout->addWidget(creditButton);
-    connect(creditButton, &QPushButton::clicked, this, &PaymentDialog::handleCredit);
+    // Payment Amount Input
+    QHBoxLayout *amountLayout = new QHBoxLayout();
+    QLabel *amountLabel = new QLabel("Payment Amount:", this);
+    paymentAmountEdit = new QLineEdit(this);
+    paymentAmountEdit->setPlaceholderText("Enter amount...");
+    paymentAmountEdit->setText(QString::number(orderTotal, 'f', 2));
+    amountLayout->addWidget(amountLabel);
+    amountLayout->addWidget(paymentAmountEdit);
+    mainLayout->addLayout(amountLayout);
 
-    // Check button with line edit above it
-    QVBoxLayout *checkLayout = new QVBoxLayout();
+    // Payment Method Selection
+    QHBoxLayout *methodLayout = new QHBoxLayout();
+    QLabel *methodLabel = new QLabel("Payment Method:", this);
+    paymentMethodCombo = new QComboBox(this);
+    paymentMethodCombo->addItems({"Cash", "Credit Card", "Check", "Store Credit"});
+    methodLayout->addWidget(methodLabel);
+    methodLayout->addWidget(paymentMethodCombo);
+    mainLayout->addLayout(methodLayout);
+
+    // Check Number Input (initially hidden)
+    QHBoxLayout *checkLayout = new QHBoxLayout();
+    QLabel *checkLabel = new QLabel("Check Number:", this);
     checkNumberEdit = new QLineEdit(this);
-    checkNumberEdit->setPlaceholderText("Check Number");
-    checkNumberEdit->setFixedWidth(100);
-    checkButton = new QPushButton("Check", this);
-    checkButton->setMinimumSize(100, 50); // Adjust height to match combined size
+    checkNumberEdit->setPlaceholderText("Enter check number...");
+    checkNumberEdit->setVisible(false);
+    checkLabel->setVisible(false);
+    checkLayout->addWidget(checkLabel);
     checkLayout->addWidget(checkNumberEdit);
-    checkLayout->addWidget(checkButton);
-    buttonLayout->addLayout(checkLayout);
-    connect(checkButton, &QPushButton::clicked, this, &PaymentDialog::handleCheck);
+    mainLayout->addLayout(checkLayout);
 
-    // Store Credit button
-    storeCreditButton = new QPushButton("Store Credit", this);
-    storeCreditButton->setMinimumSize(100, 82);
-    buttonLayout->addWidget(storeCreditButton);
-    connect(storeCreditButton, &QPushButton::clicked, this, &PaymentDialog::handleStoreCredit);
+    // Connect payment method change to show/hide check number
+    connect(paymentMethodCombo, &QComboBox::currentTextChanged, this, [this, checkLabel](const QString &method) {
+        bool isCheck = method == "Check";
+        checkNumberEdit->setVisible(isCheck);
+        checkLabel->setVisible(isCheck);
+    });
 
-    // Set the layout for the dialog
-    QVBoxLayout *dialogLayout = new QVBoxLayout(this);
-    dialogLayout->addLayout(buttonLayout);
+    // Buttons
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    QPushButton *okButton = new QPushButton("OK", this);
+    QPushButton *cancelButton = new QPushButton("Cancel", this);
+    buttonLayout->addWidget(okButton);
+    buttonLayout->addWidget(cancelButton);
+    mainLayout->addLayout(buttonLayout);
+
+    connect(okButton, &QPushButton::clicked, this, &QDialog::accept);
+    connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
+
+    // Validate payment amount on OK
+    connect(okButton, &QPushButton::clicked, this, [this, orderTotal]() {
+        bool ok;
+        double amount = paymentAmountEdit->text().toDouble(&ok);
+        if (!ok || amount <= 0) {
+            paymentAmountEdit->setStyleSheet("background-color: #ffcccc;");
+            return;
+        }
+        if (amount > orderTotal) {
+            paymentAmountEdit->setStyleSheet("background-color: #ffcccc;");
+            return;
+        }
+        paymentAmountEdit->setStyleSheet("");
+    });
 }
 
 QString PaymentDialog::getSelectedPaymentMethod() const {
-    return selectedPaymentMethod;
+    return paymentMethodCombo->currentText();
 }
 
 QString PaymentDialog::getCheckNumber() const {
-    return checkNumber;
+    return checkNumberEdit->text();
+}
+
+double PaymentDialog::getPaymentAmount() const {
+    return paymentAmountEdit->text().toDouble();
+}
+
+void PaymentDialog::setPaymentMethod(const QString &method) {
+    int index = paymentMethodCombo->findText(method);
+    if (index != -1) {
+        paymentMethodCombo->setCurrentIndex(index);
+    }
+}
+
+void PaymentDialog::setCheckNumber(const QString &number) {
+    checkNumberEdit->setText(number);
+}
+
+void PaymentDialog::setPaymentAmount(double amount) {
+    paymentAmountEdit->setText(QString::number(amount, 'f', 2));
 }
 
 void PaymentDialog::handleCash() {

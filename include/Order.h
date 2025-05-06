@@ -25,6 +25,7 @@ struct Order {
     QString store;  // "Abrite Deliveries"
     QList<SubOrder> subOrders;  // Empty list for now
     double orderTotal;
+    double balance;  // New field: orderTotal - amount paid
     QString status;  // "legacy"
     QString ticketNumber;
     QString dropoffDate;
