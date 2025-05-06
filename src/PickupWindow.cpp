@@ -50,12 +50,13 @@ PickupWindow::PickupWindow(QWidget *parent)
     QLabel *ordersLabel = new QLabel("Customer Orders:", this);
     ordersLabel->setStyleSheet("font-weight: bold;");
     customerOrdersTable = new QTableWidget(this);
-    customerOrdersTable->setColumnCount(4);
-    customerOrdersTable->setHorizontalHeaderLabels({"Dropoff Date", "Ready Date", "Payment Type", "Order Total"});
+    customerOrdersTable->setColumnCount(5);
+    customerOrdersTable->setHorizontalHeaderLabels({"Dropoff Date", "Ready Date", "Payment Type", "Order Total", "Balance"});
     customerOrdersTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     customerOrdersTable->verticalHeader()->setVisible(false);
     customerOrdersTable->setSelectionBehavior(QAbstractItemView::SelectRows); // Enable full row selection
     customerOrdersTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    customerOrdersTable->setEditTriggers(QAbstractItemView::NoEditTriggers); // Make table read-only
 
     connect(customerOrdersTable, &QTableWidget::itemSelectionChanged, this, &PickupWindow::onOrderSelected);
 
@@ -202,6 +203,7 @@ void PickupWindow::populateOrdersTable() {
         QTableWidgetItem *readyDateItem = new QTableWidgetItem(order["orderReadyDate"].toString());
         QTableWidgetItem *paymentTypeItem = new QTableWidgetItem(order["paymentType"].toString());
         QTableWidgetItem *orderTotalItem = new QTableWidgetItem(QString::number(order["orderTotal"].toDouble(), 'f', 2));
+        QTableWidgetItem *balanceItem = new QTableWidgetItem(QString::number(order["balance"].toDouble(), 'f', 2));
 
         // Store the order ID in the first column's item
         dropoffDateItem->setData(Qt::UserRole, order["_id"].toString());
@@ -210,6 +212,7 @@ void PickupWindow::populateOrdersTable() {
         customerOrdersTable->setItem(row, 1, readyDateItem);
         customerOrdersTable->setItem(row, 2, paymentTypeItem);
         customerOrdersTable->setItem(row, 3, orderTotalItem);
+        customerOrdersTable->setItem(row, 4, balanceItem);
     }
 }
 
@@ -343,15 +346,16 @@ void PickupWindow::handlePayment() {
         return;
     }
 
-    // Show payment dialog with order total
+    // Show payment dialog with remaining balance
     double orderTotal = selectedOrder["orderTotal"].toDouble();
-    PaymentDialog paymentDialog(this, orderTotal);
+    double currentBalance = selectedOrder["balance"].toDouble();
+    PaymentDialog paymentDialog(this, currentBalance);  // Pass remaining balance instead of total
 
     // Set existing payment information if available
     QString existingPaymentMethod = selectedOrder["paymentType"].toString();
     if (!existingPaymentMethod.isEmpty()) {
         paymentDialog.setPaymentMethod(existingPaymentMethod);
-        double existingAmount = orderTotal - selectedOrder["balance"].toDouble();
+        double existingAmount = orderTotal - currentBalance;
         paymentDialog.setPaymentAmount(existingAmount);
         if (existingPaymentMethod == "Check") {
             // Extract check number from order notes
@@ -369,9 +373,8 @@ void PickupWindow::handlePayment() {
         QString checkNumber = paymentDialog.getCheckNumber();
         double paymentAmount = paymentDialog.getPaymentAmount();
 
-        // Calculate new balance
-        double currentBalance = selectedOrder["balance"].toDouble();
-        double newBalance = currentBalance - paymentAmount;
+        // Calculate new balance (remaining amount to be paid)
+        double newBalance = currentBalance - paymentAmount;  // Simply subtract the payment from current balance
 
         // Update order with payment information
         QMap<QString, QVariant> updateData;

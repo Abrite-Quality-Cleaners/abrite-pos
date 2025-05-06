@@ -205,8 +205,10 @@ void DropoffWindow::handleCheckout()
 
     // If there's a payment, update the balance
     if (!currentOrder.paymentType.isEmpty()) {
-        double amountPaid = currentOrder.orderTotal - currentOrder.balance;
-        currentOrder.balance = currentOrder.orderTotal - amountPaid;
+        // Get the amount paid from the payment method display
+        QString amountPaidText = amountPaidEdit->text();
+        double amountPaid = amountPaidText.mid(1).toDouble(); // Remove the '$' and convert to double
+        currentOrder.balance = currentOrder.orderTotal - amountPaid;  // Set balance to remaining amount
     } else {
         currentOrder.balance = currentOrder.orderTotal;  // Full balance if no payment
     }
@@ -233,16 +235,25 @@ void DropoffWindow::printReceipts() {
         "CLIENT: %1\n"
         "DROP  : %2\n"
         "PICKUP: %3\n"
-        "PAY   : On-pickup\n"
+        "PAYMNT: %4 (%5)\n"
+        "BAL   : %6\n"
     ).arg(customer.id,
             currentOrder.dropoffDate,
-            currentOrder.pickupDate.isEmpty() ? "Unknown" : currentOrder.pickupDate);
+            currentOrder.pickupDate.isEmpty() ? "Unknown" : currentOrder.pickupDate,
+            currentOrder.paymentType.isEmpty() ? "On-pickup" : currentOrder.paymentType,
+            QString("$%1").arg(currentOrder.orderTotal - currentOrder.balance, 0, 'f', 2),
+            QString("$%1").arg(currentOrder.balance, 0, 'f', 2));
 
     QStringList subOrderReceipts;
     for (const SubOrder &subOrder : currentOrder.subOrders) {
         QString subOrderReceipt = QString(
             "CLIENT: %1\n"
-        ).arg(customer.id);
+            "PAYMNT: %2 (%3)\n"
+            "BAL   : %4\n"
+        ).arg(customer.id,
+              currentOrder.paymentType.isEmpty() ? "On-pickup" : currentOrder.paymentType,
+              QString("$%1").arg(currentOrder.orderTotal - currentOrder.balance, 0, 'f', 2),
+              QString("$%1").arg(currentOrder.balance, 0, 'f', 2));
 
         QString subOrderHeader = QString(
             "------------------------------------------\n"

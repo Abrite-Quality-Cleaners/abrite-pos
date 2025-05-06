@@ -61,7 +61,6 @@ PaymentDialog::PaymentDialog(QWidget *parent, double orderTotal)
     buttonLayout->addWidget(cancelButton);
     mainLayout->addLayout(buttonLayout);
 
-    connect(okButton, &QPushButton::clicked, this, &QDialog::accept);
     connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
 
     // Validate payment amount on OK
@@ -69,14 +68,17 @@ PaymentDialog::PaymentDialog(QWidget *parent, double orderTotal)
         bool ok;
         double amount = paymentAmountEdit->text().toDouble(&ok);
         if (!ok || amount <= 0) {
+            QMessageBox::warning(this, "Invalid Amount", "Please enter a valid payment amount greater than 0.");
             paymentAmountEdit->setStyleSheet("background-color: #ffcccc;");
             return;
         }
         if (amount > orderTotal) {
+            QMessageBox::warning(this, "Invalid Amount", "Payment amount cannot exceed the remaining balance.");
             paymentAmountEdit->setStyleSheet("background-color: #ffcccc;");
             return;
         }
         paymentAmountEdit->setStyleSheet("");
+        QDialog::accept();  // Call QDialog::accept() directly
     });
 }
 
