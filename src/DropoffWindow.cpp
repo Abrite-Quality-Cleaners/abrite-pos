@@ -12,6 +12,7 @@
 #include <QDebug>
 #include <QStyle>
 #include <QTimer>
+#include <QMessageBox>
 #include "Session.h"
 
 DropoffWindow::DropoffWindow(QWidget *parent)
@@ -123,7 +124,7 @@ DropoffWindow::DropoffWindow(QWidget *parent)
     });
 
     // Pay Button
-    QPushButton *payButton = new QPushButton("Pay", this);
+    QPushButton *payButton = new QPushButton("Payment", this);
     payButton->setMinimumWidth(100);
     btnRow->addWidget(payButton);
     connect(payButton, &QPushButton::clicked, this, [=]() {
@@ -167,6 +168,15 @@ DropoffWindow::~DropoffWindow()
 
 void DropoffWindow::handleCheckout()
 {
+    // Ask for confirmation
+    QMessageBox::StandardButton reply = QMessageBox::question(this, "Confirm Checkout",
+        "Are you sure you want to check out this order?",
+        QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::No) {
+        return;
+    }
+
     // Update the current order with the latest data
     const Customer &customer = Session::instance().getCustomer();
     currentOrder.customerId = customer.id;
@@ -216,11 +226,11 @@ void DropoffWindow::handleCheckout()
     QString orderId = Session::instance().getMongoManager().addOrder(currentOrder);
     if (!orderId.isEmpty()) {
         qDebug() << "Order added successfully with ID:" << orderId;
+        printReceipts();
+        emit dropoffDone(); // Return to store selection window
     } else {
         qDebug() << "Failed to add order.";
     }
-
-    printReceipts();
 }
 
 void DropoffWindow::printReceipts() {

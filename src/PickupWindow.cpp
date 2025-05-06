@@ -9,6 +9,7 @@
 #include <QDateTime>
 #include "PaymentDialog.h"
 #include <QSizePolicy>
+#include <QMessageBox>
 
 PickupWindow::PickupWindow(QWidget *parent)
     : QMainWindow(parent) {
@@ -40,8 +41,9 @@ PickupWindow::PickupWindow(QWidget *parent)
     QLabel *customerNotesLabel = new QLabel("Customer Notes:", this);
     customerNotesLabel->setStyleSheet("font-weight: bold;");
     customerNotesEdit = new QTextEdit(this);
-    customerNotesEdit->setReadOnly(true);
+    customerNotesEdit->setReadOnly(false);  // Make it editable
     customerNotesEdit->setFixedHeight(100);
+    customerNotesEdit->setPlaceholderText("Enter customer notes...");
 
     leftLayout->addWidget(customerNotesLabel);
     leftLayout->addWidget(customerNotesEdit);
@@ -126,10 +128,12 @@ PickupWindow::PickupWindow(QWidget *parent)
     btnRow->addWidget(checkoutButton);
     connect(checkoutButton, &QPushButton::clicked, this, &PickupWindow::handleCheckout);
 
-    QPushButton *paymentButton = new QPushButton("Payment", this);
-    paymentButton->setMinimumWidth(100);
-    btnRow->addWidget(paymentButton);
-    connect(paymentButton, &QPushButton::clicked, this, &PickupWindow::handlePayment);
+    QPushButton *payButton = new QPushButton("Payment", this);
+    payButton->setMinimumWidth(100);
+    btnRow->addWidget(payButton);
+    connect(payButton, &QPushButton::clicked, this, [=]() {
+        handlePayment();
+    });
 
     QPushButton *cancelButton = new QPushButton("Cancel", this);
     cancelButton->setMinimumWidth(100);
@@ -144,9 +148,69 @@ PickupWindow::PickupWindow(QWidget *parent)
 }
 
 void PickupWindow::handleCheckout() {
-    qDebug() << "Check-out button clicked";
-    qDebug() << "Order Notes:" << notesEdit->toPlainText();
-    // Add logic for handling checkout here
+    // Get the selected row
+    int selectedRow = customerOrdersTable->currentRow();
+    if (selectedRow < 0) {
+        qDebug() << "No order selected.";
+        return;
+    }
+
+    // Get the order ID from the selected row
+    QString orderId = customerOrdersTable->item(selectedRow, 0)->data(Qt::UserRole).toString();
+    if (orderId.isEmpty()) {
+        qDebug() << "No order ID found for selected row.";
+        return;
+    }
+
+    // Get the order data
+    QMap<QString, QVariant> selectedOrder = Session::instance().getMongoManager().getOrder(orderId);
+    if (selectedOrder.isEmpty()) {
+        qDebug() << "Selected order not found.";
+        return;
+    }
+
+    // Check if there's a remaining balance
+    double balance = selectedOrder["balance"].toDouble();
+    if (balance > 0) {
+        QMessageBox::warning(this, "Outstanding Balance",
+            QString("This order has an outstanding balance of $%1. Please collect payment before checkout.")
+            .arg(balance, 0, 'f', 2));
+        return;
+    }
+
+    // Ask for confirmation
+    QMessageBox::StandardButton reply = QMessageBox::question(this, "Confirm Checkout",
+        "Are you sure you want to check out this order?",
+        QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::No) {
+        return;
+    }
+
+    // Update customer notes if any were modified
+    QString currentCustomerNotes = Session::instance().getCustomer().note;
+    QString newCustomerNotes = customerNotesEdit->toPlainText();
+    if (newCustomerNotes != currentCustomerNotes) {
+        QMap<QString, QVariant> customerUpdate;
+        customerUpdate["note"] = newCustomerNotes;
+        Session::instance().getMongoManager().updateCustomer(Session::instance().getCustomer().id, customerUpdate);
+    }
+
+    // Update order notes if any were added
+    if (!notesEdit->toPlainText().isEmpty()) {
+        QString currentNotes = selectedOrder["orderNote"].toString();
+        QString newNotes = notesEdit->toPlainText();
+        if (!currentNotes.isEmpty()) {
+            currentNotes += "\n";
+        }
+        currentNotes += newNotes;
+
+        QMap<QString, QVariant> updateData;
+        updateData["orderNote"] = currentNotes;
+        Session::instance().getMongoManager().updateOrder(orderId, updateData);
+    }
+
+    emit pickupDone(); // Return to store selection window
 }
 
 void PickupWindow::updateCustomerInfo() {
@@ -187,11 +251,20 @@ void PickupWindow::populateOrdersTable() {
 
     qDebug() << "Fetched" << orders.size() << "orders for customer ID:" << customerId;
 
-    // Sort orders by dropoff date (most recent to oldest)
+    // Sort orders by balance (highest to lowest) and then by dropoff date (most recent to oldest)
     std::sort(orders.begin(), orders.end(), [](const QMap<QString, QVariant> &a, const QMap<QString, QVariant> &b) {
+        double balanceA = a["balance"].toDouble();
+        double balanceB = b["balance"].toDouble();
+        
+        // First sort by balance (highest to lowest)
+        if (balanceA != balanceB) {
+            return balanceA > balanceB;
+        }
+        
+        // If balances are equal, sort by date (most recent first)
         QDateTime dropoffA = QDateTime::fromString(a["dropoffDate"].toString(), "MM/dd/yy hh:mm:ss");
         QDateTime dropoffB = QDateTime::fromString(b["dropoffDate"].toString(), "MM/dd/yy hh:mm:ss");
-        return dropoffA > dropoffB; // Most recent first
+        return dropoffA > dropoffB;
     });
 
     // Populate the table
